@@ -1,0 +1,27 @@
+# BE（Go）用 CI の最小例。CI が無い場合は .github/workflows/ci-api.yml にコピーして使う。
+# name: は factory-heal.yml の workflows: と一致させること。
+name: CI / api
+on:
+  pull_request:
+    paths: ["backend/**", "contracts/**", ".github/workflows/ci-api.yml"]
+  push:
+    branches: [main]
+    paths: ["backend/**", "contracts/**"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: "backend"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: "backend/go.mod"
+          cache-dependency-path: "backend/go.sum"
+      - run: gofmt -l . | tee /dev/stderr | wc -l | grep -qx 0
+      - run: go vet ./...
+      - run: go build ./...
+      - run: go test ./... -count=1 -race

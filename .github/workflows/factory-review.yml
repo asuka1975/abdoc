@@ -34,7 +34,7 @@ jobs:
       - name: Review with Claude
         uses: anthropics/claude-code-action@v1
         with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           # PR を開く／push するのは claude[bot]（Claude GitHub App）。
           # Action は bot が起こしたイベントを既定で拒否するので、明示的に許可する。
           allowed_bots: ${{ vars.FACTORY_BOT_LOGIN != '' && format('claude[bot],{0}', vars.FACTORY_BOT_LOGIN) || 'claude[bot]' }}

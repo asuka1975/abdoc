@@ -54,7 +54,7 @@ jobs:
         id: intake
         uses: anthropics/claude-code-action@v1
         with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           # Issue 作成者は write 権限を持たないことがあるため必要（intake は読み取り専用なので許容）
           allowed_non_write_users: "*"
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -68,7 +68,7 @@ jobs:
             --model ${{ vars.FACTORY_MODEL_LIGHT || 'claude-sonnet-5-5' }}
             --max-turns 30
             --allowedTools "Read,Glob,Grep,Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh search issues:*),Bash(gh pr list:*),Bash(gh api repos/*/issues/*)"
-            --json-schema '{"type":"object","properties":{"decision":{"type":"string","enum":["needs-info","planned","blocked"]},"type":{"type":"string","enum":["bug","feature","docs","chore"]},"risk":{"type":"string","enum":["low","medium","high"]},"budget":{"type":"string","enum":["s","m","l"]},"duplicate_of":{"type":["integer","null"]},"comment_markdown":{"type":"string"}},"required":["decision","type","risk","budget","comment_markdown"]}'
+            --json-schema '{"type":"object","properties":{"decision":{"type":"string","enum":["needs-info","planned","blocked"]},"type":{"type":"string","enum":["bug","feature","docs","chore"]},"area":{"type":"string","enum":["fe","be","fullstack","infra"]},"risk":{"type":"string","enum":["low","medium","high"]},"budget":{"type":"string","enum":["s","m","l"]},"duplicate_of":{"type":["integer","null"]},"comment_markdown":{"type":"string"}},"required":["decision","type","area","risk","budget","comment_markdown"]}'
 
       - name: Apply decision (labels + sticky spec comment)
         env:

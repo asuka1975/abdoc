@@ -1,17 +1,18 @@
-# ファクトリーの「人間のゲート」を機械的に強制する。
-# ブランチ保護で "Require review from Code Owners" を有効にすること。
-# OWNER 名は書き換える。
+# 人間のゲートを機械的に強制する（ブランチ保護で "Require review from Code Owners" を有効にしたときだけ効く）。
+# 1 人運用ならこのファイルは不要（削除してよい）。チームになったら @asuka1975/frontend 等に分ける。
 
-# 既定: すべてのファクトリー PR に人間 1 名
-*                         @OWNER/engineers
+*                         @asuka1975
 
-# risk:high 相当の領域は別チームの承認も必須（2 名）
-/migrations/              @OWNER/engineers @OWNER/data
-/src/auth/                @OWNER/engineers @OWNER/security
-/src/payments/            @OWNER/engineers @OWNER/security
-/infra/                   @OWNER/engineers @OWNER/platform
+# 領域別（チームができたら書き換える）
+/frontend/              @asuka1975
+/backend/              @asuka1975
 
-# ファクトリー自身（ワークフロー・プロンプト・AGENTS.md）の変更はハーネス担当が見る
-/.github/                 @OWNER/platform
-/AGENTS.md                @OWNER/platform
-/scripts/factory/         @OWNER/platform
+# 契約（FE/BE 両方に影響）と risk:high 相当の領域
+/contracts/               @asuka1975
+/backend/migrations/   @asuka1975
+/infra/                   @asuka1975
+
+# ファクトリー自身（ワークフロー・プロンプト・AGENTS.md）
+/.github/                 @asuka1975
+/AGENTS.md                @asuka1975
+/scripts/factory/         @asuka1975

@@ -70,3 +70,17 @@
 - name: "heal:2"
   color: "f9a825"
   description: "CI自動修復 2回目（上限）"
+
+# --- 領域（モノレポ）: intake が判定、人間が上書き可 ---
+- name: "area:fe"
+  color: "c5f5e8"
+  description: "フロントエンド"
+- name: "area:be"
+  color: "c5d5f5"
+  description: "バックエンド"
+- name: "area:fullstack"
+  color: "e8c5f5"
+  description: "FE/BE 両方。契約 → BE → FE の順で進める（分割推奨）"
+- name: "area:infra"
+  color: "f5e3c5"
+  description: "CI / IaC / 契約 / ルート設定"

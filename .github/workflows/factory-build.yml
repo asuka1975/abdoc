@@ -22,6 +22,8 @@ concurrency:
 env:
   ISSUE_NUMBER: ${{ github.event.issue.number }}
   BASE_BRANCH: ${{ github.event.repository.default_branch }}
+  # 領域（area:* ラベル）。fullstack / 未設定は all
+  AREA: ${{ contains(github.event.issue.labels.*.name, 'area:fe') && 'fe' || contains(github.event.issue.labels.*.name, 'area:be') && 'be' || contains(github.event.issue.labels.*.name, 'area:infra') && 'infra' || 'all' }}
   # 決定的な副作用（PR作成・コメント・ラベル）は FACTORY_GITHUB_TOKEN で行う。
   # GITHUB_TOKEN で作った PR/コメントは後続ワークフロー（CI/review/chat）を起動しないため。
   GH_TOKEN: ${{ secrets.FACTORY_GITHUB_TOKEN || github.token }}
@@ -54,9 +56,9 @@ jobs:
           gh issue edit "$ISSUE_NUMBER" -R "$GITHUB_REPOSITORY" \
             --remove-label factory:ready --add-label factory:building
 
-      - name: Setup toolchain (project specific)
+      - name: Setup toolchain for the area
         if: steps.existing.outputs.pr == ''
-        run: bash scripts/factory/setup.sh
+        run: bash scripts/factory/setup.sh "$AREA"
 
       - name: Build with Claude Code
         if: steps.existing.outputs.pr == ''
@@ -64,7 +66,7 @@ jobs:
         continue-on-error: true
         uses: anthropics/claude-code-action@v1
         with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           # Issue 起点では action が新しいブランチを作る（factory/issue-<N>-<timestamp>）
           branch_prefix: factory/
           base_branch: ${{ github.event.repository.default_branch }}
@@ -76,8 +78,10 @@ jobs:
             REPO: ${{ github.repository }}
             ISSUE_NUMBER: ${{ github.event.issue.number }}
             BASE_BRANCH: ${{ github.event.repository.default_branch }}
+            AREA: ${{ env.AREA }}
 
             .github/factory/prompts/build.md の手順に厳密に従ってください。
+            AREA に対応するディレクトリはルート AGENTS.md の「領域」表にあります。そのディレクトリの AGENTS.md を最初に読んでください。
             仕様の正は Issue の `<!-- factory:spec -->` コメント（人間が編集済みならそれ）です。
           claude_args: |
             --model ${{ vars.FACTORY_MODEL_BUILD || 'claude-opus-5-5' }}

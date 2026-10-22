@@ -1,0 +1,28 @@
+# FE 用 CI の最小例。CI が無い場合は .github/workflows/ci-web.yml にコピーして使う。
+# name: は factory-heal.yml の workflows: と一致させること。
+name: CI / web
+on:
+  pull_request:
+    paths: ["frontend/**", "contracts/**", ".github/workflows/ci-web.yml"]
+  push:
+    branches: [main]
+    paths: ["frontend/**", "contracts/**"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: "frontend"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: "frontend/.nvmrc"   # 無ければ node-version: "22"
+          cache: pnpm
+          cache-dependency-path: "frontend/pnpm-lock.yaml"
+      - run: corepack enable && pnpm install --frozen-lockfile
+      - run: pnpm typecheck && pnpm lint
+      - run: pnpm test -- --ci
+      - run: pnpm build

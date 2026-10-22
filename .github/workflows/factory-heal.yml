@@ -6,7 +6,8 @@ name: factory / heal
 # 要: FACTORY_GITHUB_TOKEN（GITHUB_TOKEN で付けたコメントは factory / chat を起動しないため）
 on:
   workflow_run:
-    workflows: ["CI"]   # ← プロジェクトの CI ワークフロー名に合わせる
+    # ← 領域別 CI の name: を並べる（init-monorepo.sh が置換する）
+    workflows: ["CI / web", "CI / api"]
     types: [completed]
 
 permissions:
@@ -26,6 +27,7 @@ jobs:
       BRANCH: ${{ github.event.workflow_run.head_branch }}
       RUN_ID: ${{ github.event.workflow_run.id }}
       RUN_URL: ${{ github.event.workflow_run.html_url }}
+      WF_NAME: ${{ github.event.workflow_run.name }}
       MAX_HEALS: ${{ vars.FACTORY_MAX_HEALS || 2 }}
     steps:
       - name: Request a bounded fix on the PR
@@ -50,6 +52,6 @@ jobs:
 
           next=$((attempts + 1))
           gh pr edit "$pr" -R "$R" --add-label "heal:${next}"
-          body="@claude CI run ${RUN_ID} が失敗しました（自動修復 ${next}/${MAX_HEALS} 回目）: ${RUN_URL}
-          .github/factory/prompts/heal.md の手順に従って修復してください。テストを削除・skip・緩めて通すことは禁止です。"
+          body="@claude CI「${WF_NAME}」run ${RUN_ID} が失敗しました（自動修復 ${next}/${MAX_HEALS} 回目）: ${RUN_URL}
+          .github/factory/prompts/heal.md の手順に従って修復してください。該当領域の AGENTS.md を先に読むこと。テストを削除・skip・緩めて通すことは禁止です。"
           gh pr comment "$pr" -R "$R" --body "$body"
