@@ -8,6 +8,8 @@
 - 出力に秘密情報・トークン・内部 URL を含めません。
 
 ## 手順
+0. **先に正を読む**: ルート `AGENTS.md` と、あれば `docs/PRODUCT.md`（目的・スタック・やらないこと・未決事項）。
+   Issue の記載が PRODUCT.md と矛盾する場合（例: Issue は Next.js、PRODUCT.md は Astro）、**PRODUCT.md を優先**して仕様を書き、矛盾の事実を「人間への質問」の先頭に明記する。PRODUCT.md の「未決事項」に該当する点は、推測せず質問にする。
 1. Issue を取得する: `gh issue view $ISSUE_NUMBER -R $REPO --json title,body,labels,author,comments`
    - `EVENT` が `issue_comment` の場合、直近の人間の返信は前回の質問への回答です。
 2. 重複を確認する: `gh search issues --repo $REPO --state open "<タイトルの要点 2〜3 語>" --limit 10`。明らかな重複があれば `duplicate_of` に番号を入れ、`decision` は `blocked`（閉じるかは人間が決める）。

@@ -2,7 +2,9 @@
 {{SYSTEM}}
 
 バックエンドの雛形を作り、以後の全 Issue が「テストを書いて CI を通す」ループに乗れる足場にする。機能はまだ作らない。
-正は `docs/PRODUCT.md`。スタック: **{{BE_STACK}}**（データ: {{DB}}）。
+**正は `docs/PRODUCT.md`。この Issue の記載と PRODUCT.md が矛盾したら PRODUCT.md を優先し、矛盾を「人間への質問」に書く。**
+スタック（PRODUCT.md より）: **{{BE_STACK}}** / データ: **{{DB}}** / 実行基盤: **{{GCP}}**
+（以下は Go を前提に書いてある。PRODUCT.md のスタックが Go でなければ、intake が同等の項目に読み替える）
 
 ### 受け入れ基準（検証できる形で）
 - WHEN `bash scripts/factory/setup.sh be` を素の checkout で実行 THE SYSTEM SHALL 依存取得・ビルド・vet が成功する

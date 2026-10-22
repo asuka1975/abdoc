@@ -3,6 +3,7 @@
 
 FE と BE の契約を `contracts/openapi.yaml` に一本化し、両側のコードを生成する仕組みを作る。
 以後、API を変える Issue は「契約を変えて再生成する」だけになり、生成物の手編集をレビューで弾けるようになる。
+**正は `docs/PRODUCT.md`（BE: {{BE_STACK}} / FE: {{FE_STACK}}）。矛盾したら PRODUCT.md を優先し、「人間への質問」に書く。**
 
 ### 受け入れ基準（検証できる形で）
 - `contracts/openapi.yaml` が存在し、`GET /healthz` を定義している（OpenAPI 3.1）
