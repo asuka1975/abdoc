@@ -1,12 +1,23 @@
 # 導入手順（モノレポ FE + BE / Google Cloud）
 
-**最短ルートは 6 ステップ・約 30 分**です。それ以外は「必要になったら足す」に回します。
-前提: リポジトリの admin 権限、`gh auth login` 済み、Claude API キー。
+最初に 1 つだけ分岐があります。**リポジトリにコードがあるか、まだ無いか。**
 
 ```
-最短ルート:  1 キット展開 → 2 App と Secret → 3 マージ（ラベルは自動同期） → 4 init-monorepo.sh → 5 領域 AGENTS.md の数行 → 6 Issue を 1 件
-あとで:      FACTORY_GITHUB_TOKEN / ブランチ保護 / Vertex AI 経由 / 組織展開
+既存コードあり:  1 キット展開 → 2 App と Secret → 3 マージ → 4 init-monorepo.sh → 5 領域 AGENTS.md の数行 → 6 Issue を 1 件
+コードがまだ無い: 1 キット展開 → 2 App と Secret → 3 マージ → 4 init-monorepo.sh → 5G bootstrap-issues.sh → 6G 雛形 Issue を順に ready
+あとで:          FACTORY_GITHUB_TOKEN / ブランチ保護 / Vertex AI 経由 / 組織展開
 ```
+
+前提: リポジトリの admin 権限、`gh auth login` 済み、Claude API キー。Step 1〜4 は共通です。
+
+## グリーンフィールド（コードがまだ無い）の考え方
+
+工場は「コマンド表・CI・レイヤー」という足場を前提に動きますが、空のリポジトリにはその足場がありません。
+そこで **足場を作る仕事自体を最初の Issue にします**。人間が決めるのは「何を作るか」と「スタック」だけで、
+コマンド表・CI・AGENTS.md の中身は雛形 PR を書いたエージェントが実コードから埋めます。
+コードが無い間、CI（`ci-*.yml`）と `setup.sh` はマニフェスト（`go.mod` / `package.json`）が無い領域をスキップして緑で終わります。
+
+**最初の 3 つの雛形 PR は、以後の全 PR が真似する規約になります。** ここだけは手を抜かずにレビューしてください（構成、lint 設定、テストの書き方、Dockerfile）。
 
 ---
 
@@ -54,8 +65,33 @@ bash scripts/factory/init-monorepo.sh apps/web services/api "CI / web" "CI / api
 置換されるもの: `setup.sh` の `FE_DIR` / `BE_DIR`、ルート `AGENTS.md` の領域表、`CODEOWNERS`、`factory-heal.yml` の CI 名。
 `apps/web/AGENTS.md` と `services/api/AGENTS.md` がテンプレートから生成されます（既存があれば触りません）。
 **CI が 1 つも無い場合**は、最小の `ci-web.yml` / `ci-api.yml` も自動で置かれます。
+**コードが無い領域**（`package.json` / `go.mod` が無い）には、推測を禁じるスタブ AGENTS.md が置かれ、次は 5G に進みます。
 
-## 5. 領域の AGENTS.md を実際のコマンドに合わせる（10 分）
+## 5G. `bootstrap-issues.sh` で意図を渡す（グリーンフィールド・10 分）
+
+2 段階です（intake が未記入の PRODUCT.md を読まないように、Issue 起票は PRODUCT.md が default branch に入ってから）。
+
+```bash
+# (1) PRODUCT.md だけ作る
+bash scripts/factory/bootstrap-issues.sh --product-only \
+  --system "請求書 PDF を取り込んで仕訳を提案する社内ツール" \
+  --be "Go 1.23 + chi, Cloud Run" --fe "Next.js 15 + pnpm + TypeScript strict" \
+  --db "Cloud SQL (Postgres) + sqlc" --gcp "asia-northeast1, Cloud Run"
+# (2) docs/PRODUCT.md の「成功の定義」「やらないこと」「未決事項」を埋めて default branch に push
+git add docs/PRODUCT.md && git commit -m "docs: product brief" && git push
+# (3) 雛形 Issue 3 件（BE → FE → 契約）。PRODUCT.md が push されていなければ中断する
+bash scripts/factory/bootstrap-issues.sh --system "請求書 PDF を取り込んで仕訳を提案する社内ツール"
+```
+`--dry-run` で Issue 本文だけ確認できます。コードが無い間、エージェントの根拠は PRODUCT.md と Issue の仕様だけです。
+
+## 6G. 雛形 Issue を順に ready にする（グリーンフィールド）
+
+1. BE の Issue の仕様コメントを読み、`factory:ready`。Draft PR が来たら **丁寧に**レビュー（この構成が以後の規約になる）→ マージ。`backend/AGENTS.md` は実コードに基づく内容に置き換わっているはずです。
+2. FE の Issue を ready → レビュー → マージ。
+3. 契約の Issue を ready → レビュー → マージ。ルート `AGENTS.md` の契約の節が実コマンドになります。
+4. ここから先は通常運用（Step 6 以降と同じ）。最初の業務機能の Issue を書くときは `docs/PRODUCT.md` の「成功の定義」から 1 つ選びます。
+
+## 5. 領域の AGENTS.md を実際のコマンドに合わせる（既存コードあり・10 分）
 
 生成された 2 つの AGENTS.md の「コマンド」表と「構成と境界」の **（例: …）** を、実際の値に直します。一般論は書かず、「このディレクトリ固有のコマンド・境界・禁止事項」だけ（10〜30 行）。ルート `AGENTS.md` の冒頭 1〜2 行（何のシステムか）も埋めます。
 
@@ -68,7 +104,14 @@ git push -u origin HEAD && gh pr create --fill && gh pr merge --squash --delete-
 ランナーは毎回素の checkout なので、`setup.sh` が手元のキャッシュに頼っていないかをこの worktree で確かめます（厳密にはコンテナ内で）。
 この手順自体をローカルの Claude Code にやらせてもよい: 「`docs/factory/SETUP.md` の Step 5 を実行して。コマンドは package.json と Makefile から拾って」。
 
-## 6. Issue を 1 件作って回す（5 分）
+## 検査: `doctor.sh`（どの経路でも最後に 1 回）
+
+```bash
+bash scripts/factory/doctor.sh
+```
+ワークフローの登録、ラベル 24 個、Secret、Claude App、Actions の PR 作成許可、プレースホルダの残り、`setup.sh` が素の checkout で通るか、を PASS / WARN / FAIL で出します。FAIL が 0 なら Issue を作って構いません。動かなくなったときも最初にこれを実行してください。
+
+## 6. Issue を 1 件作って回す（既存コードあり・5 分）
 
 テンプレート「✨ 機能要望」で、`risk:low` 相当の小さな仕事（例: `services/api/AGENTS.md` の構成説明を実コードに合わせて補完する、`type:docs`）を 1 件。
 - 数分で `factory:planned` と `<!-- factory:spec -->` コメントが付く → 読んで `factory:ready` を付ける

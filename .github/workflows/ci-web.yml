@@ -1,5 +1,6 @@
 # FE 用 CI の最小例。CI が無い場合は .github/workflows/ci-web.yml にコピーして使う。
 # name: は factory-heal.yml の workflows: と一致させること。
+# コードがまだ無い（package.json が無い）間は何もせず緑で終わる（グリーンフィールド対応）。
 name: CI / web
 on:
   pull_request:
@@ -17,12 +18,19 @@ jobs:
         working-directory: "frontend"
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - id: code
+        run: |
+          if [ -f package.json ]; then echo "present=true" >> "$GITHUB_OUTPUT"
+          else echo "present=false" >> "$GITHUB_OUTPUT"; echo "::notice::frontend/package.json が無いため CI をスキップ（雛形が入ると有効になる）"; fi
+      - if: steps.code.outputs.present == 'true'
+        uses: actions/setup-node@v4
         with:
-          node-version-file: "frontend/.nvmrc"   # 無ければ node-version: "22"
-          cache: pnpm
-          cache-dependency-path: "frontend/pnpm-lock.yaml"
-      - run: corepack enable && pnpm install --frozen-lockfile
-      - run: pnpm typecheck && pnpm lint
-      - run: pnpm test -- --ci
-      - run: pnpm build
+          node-version: "22"          # .nvmrc を置いたら node-version-file: "frontend/.nvmrc" に
+      - if: steps.code.outputs.present == 'true'
+        run: corepack enable && pnpm install --frozen-lockfile
+      - if: steps.code.outputs.present == 'true'
+        run: pnpm typecheck && pnpm lint
+      - if: steps.code.outputs.present == 'true'
+        run: pnpm test -- --ci
+      - if: steps.code.outputs.present == 'true'
+        run: pnpm build
