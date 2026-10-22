@@ -15,10 +15,6 @@ permissions:
   id-token: write
   actions: read
 
-concurrency:
-  group: factory-build-${{ github.event.issue.number }}
-  cancel-in-progress: false
-
 env:
   ISSUE_NUMBER: ${{ github.event.issue.number }}
   BASE_BRANCH: ${{ github.event.repository.default_branch }}
@@ -32,6 +28,11 @@ jobs:
   build:
     if: github.event.label.name == 'factory:ready'
     runs-on: ubuntu-latest
+    # ジョブ単位の concurrency: スクリプトが付ける他のラベル（building 等）で起動した skip 対象の run が、
+    # 実行中の build を取り消したり pending 枠を奪ったりしないようにする
+    concurrency:
+      group: factory-build-${{ github.event.issue.number }}
+      cancel-in-progress: false
     timeout-minutes: ${{ contains(github.event.issue.labels.*.name, 'budget:l') && 180 || contains(github.event.issue.labels.*.name, 'budget:s') && 45 || 90 }}
     steps:
       - uses: actions/checkout@v4

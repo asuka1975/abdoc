@@ -7,6 +7,12 @@ name: factory / intake
 #   - contents: read のみ（コードは変更できない）
 #   - 使えるツールは読み取りと gh の参照系だけ
 #   - 本番の秘密情報は一切渡さない
+#
+# ループ防止の約束:
+#   - 工場（スクリプト・エージェント）が投稿するコメントは必ず `<!-- factory:` で始まるマーカーを持つ。
+#     そのコメントはここでも factory / chat でも起動条件から除外する。
+#   - `@claude` を含むコメントは chat の担当なので intake は反応しない。
+#   - concurrency はワークフローではなく **ジョブ** に置く（条件で skip される run が実行中の run を取り消さないように）。
 on:
   issues:
     types: [opened, edited, reopened]
@@ -18,24 +24,25 @@ permissions:
   issues: write
   id-token: write
 
-concurrency:
-  group: factory-intake-${{ github.event.issue.number }}
-  cancel-in-progress: true
-
 jobs:
   triage:
     # 起動条件:
     #  (a) Issue イベントで factory:triage が付いている
-    #  (b) factory:needs-info の Issue に人間（Bot 以外）がコメントした
+    #  (b) factory:needs-info の Issue に、人間が（工場のマーカー無し・@claude 無しで）コメントした
     if: >-
       (github.event_name == 'issues' &&
         contains(github.event.issue.labels.*.name, 'factory:triage')) ||
       (github.event_name == 'issue_comment' &&
         !github.event.issue.pull_request &&
         contains(github.event.issue.labels.*.name, 'factory:needs-info') &&
-        github.event.comment.user.type != 'Bot')
+        github.event.comment.user.type != 'Bot' &&
+        !contains(github.event.comment.body, '<!-- factory:') &&
+        !contains(github.event.comment.body, '@claude'))
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    concurrency:
+      group: factory-intake-${{ github.event.issue.number }}
+      cancel-in-progress: true
     env:
       ISSUE_NUMBER: ${{ github.event.issue.number }}
       GH_TOKEN: ${{ secrets.FACTORY_GITHUB_TOKEN || github.token }}
@@ -80,9 +87,11 @@ jobs:
         run: |
           gh issue edit "$ISSUE_NUMBER" -R "$GITHUB_REPOSITORY" \
             --remove-label factory:triage --add-label factory:blocked || true
+          # 先頭のマーカーで「工場のコメント」と分かるようにする（intake / chat はこれを無視する）
           # URL は行末に置く（直後に全角文字を続けると自動リンクが URL に取り込んでしまう）
-          body="⚠️ 受付エージェントが異常終了しました。
+          body="<!-- factory:bot -->
+          ⚠️ 受付エージェントが異常終了しました。
           ログ: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
-          人間が確認して \`factory:triage\` を付け直すか、手で仕様を書いて \`factory:ready\` にしてください。Secret やラベルの不備は \`bash scripts/factory/doctor.sh\` で検査できます。"
+          人間が確認して \`factory:triage\` を付け直し、Issue を close → reopen すると再受付されます。Secret やラベルの不備は \`bash scripts/factory/doctor.sh\` で検査できます。"
           gh issue comment "$ISSUE_NUMBER" -R "$GITHUB_REPOSITORY" --body "$body"
