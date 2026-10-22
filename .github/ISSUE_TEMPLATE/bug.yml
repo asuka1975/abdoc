@@ -40,6 +40,17 @@ body:
       label: 関連情報
       description: Sentry/Datadog のリンク、関連 Issue、怪しいと思うファイル
   - type: dropdown
+    id: area
+    attributes:
+      label: 領域（自己申告・AI が再評価します）
+      options:
+        - わからない（AI が判定）
+        - fe（フロントエンド）
+        - be（バックエンド）
+        - fullstack（両方）
+        - infra（CI / IaC / 契約 / ルート設定）
+      default: 0
+  - type: dropdown
     id: risk
     attributes:
       label: 影響範囲（自己申告・AI が再評価します）

@@ -41,6 +41,7 @@ stateDiagram-v2
 | 軸 | 値 | 使われ方 |
 |---|---|---|
 | `type:*` | `bug` / `feature` / `docs` / `chore` | レビュー観点とプロンプトの切替 |
+| `area:*` | `fe` / `be` / `fullstack` / `infra` | どの AGENTS.md を読むか、`setup.sh` で何を入れるか、レビューのチェックリスト。`fullstack` は契約 → BE → FE の順（分割推奨） |
 | `risk:*` | `low` / `medium` / `high` | レビューの深さ、自動マージ可否（high は必ず人間 2 名など） |
 | `budget:*` | `s` / `m` / `l` | `--max-turns` と `timeout-minutes` の上限 |
 | `heal:N` | PR 側。CI 自動修復の試行回数 | 上限に達したら `factory:blocked` |

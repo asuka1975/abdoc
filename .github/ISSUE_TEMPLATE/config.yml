@@ -2,5 +2,5 @@
 blank_issues_enabled: false
 contact_links:
   - name: 💬 質問・相談
-    url: https://github.com/OWNER/REPO/discussions
-    about: 実装依頼ではない質問は Discussions へ（OWNER/REPO を書き換えてください）
+    url: https://github.com/asuka1975/REPO/discussions
+    about: 実装依頼ではない質問は Discussions へ（REPO を書き換えてください。Discussions を使わないなら contact_links ごと削除）

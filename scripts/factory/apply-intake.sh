@@ -10,6 +10,7 @@ MARKER="<!-- factory:spec -->"
 
 decision=$(jq -r '.decision' <<<"$INTAKE_JSON")
 type=$(jq -r '.type' <<<"$INTAKE_JSON")
+area=$(jq -r '.area // "be"' <<<"$INTAKE_JSON")
 risk=$(jq -r '.risk' <<<"$INTAKE_JSON")
 budget=$(jq -r '.budget' <<<"$INTAKE_JSON")
 dup=$(jq -r '.duplicate_of // empty' <<<"$INTAKE_JSON")
@@ -22,13 +23,13 @@ case "$decision" in
   *) echo "unknown decision: $decision" >&2; exit 1 ;;
 esac
 
-# --- ラベル: 状態は常に1つ。type/risk/budget は intake の提案で置き換える ---
-want="$state type:$type risk:$risk budget:$budget"
+# --- ラベル: 状態は常に1つ。type/area/risk/budget は intake の提案で置き換える ---
+want="$state type:$type area:$area risk:$risk budget:$budget"
 current=$(gh issue view "$ISSUE_NUMBER" -R "$R" --json labels --jq '.labels[].name')
 remove=()
 for l in $current; do
   case "$l" in
-    factory:*|type:*|risk:*|budget:*)
+    factory:*|type:*|area:*|risk:*|budget:*)
       grep -qx "$l" <<<"$(tr ' ' '\n' <<<"$want")" || remove+=(--remove-label "$l") ;;
   esac
 done
@@ -38,7 +39,7 @@ gh issue edit "$ISSUE_NUMBER" -R "$R" ${remove[@]+"${remove[@]}"} "${add[@]}"
 
 # --- コメント: <!-- factory:spec --> で始まる1つのコメントを upsert（会話を汚さない） ---
 header="$MARKER
-<sub>🤖 factory / intake — decision: \`$decision\` · type: \`$type\` · risk: \`$risk\` · budget: \`$budget\`${dup:+ · duplicate_of: #$dup}</sub>
+<sub>🤖 factory / intake — decision: \`$decision\` · type: \`$type\` · area: \`$area\` · risk: \`$risk\` · budget: \`$budget\`${dup:+ · duplicate_of: #$dup}</sub>
 
 "
 body="${header}${comment}"
@@ -49,4 +50,4 @@ if [ -n "$cid" ]; then
 else
   gh api -X POST "repos/$R/issues/$ISSUE_NUMBER/comments" -f body="$body" >/dev/null
 fi
-echo "applied: $decision ($type/$risk/$budget) to #$ISSUE_NUMBER"
+echo "applied: $decision ($type/$area/$risk/$budget) to #$ISSUE_NUMBER"

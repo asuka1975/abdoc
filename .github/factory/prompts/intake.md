@@ -13,8 +13,10 @@
 2. 重複を確認する: `gh search issues --repo $REPO --state open "<タイトルの要点 2〜3 語>" --limit 10`。明らかな重複があれば `duplicate_of` に番号を入れ、`decision` は `blocked`（閉じるかは人間が決める）。
 3. 分類する:
    - `type`: bug / feature / docs / chore
+   - `area`: fe / be / fullstack / infra。ルート `AGENTS.md` の「領域」表でディレクトリを確認し、影響するファイルがどこにあるかで決める（Issue の自己申告より実際のコードを優先）。CI・IaC・API 契約・ルート設定だけなら infra
    - `risk`: low（docs・テスト・内部リファクタ）/ medium（既存機能の変更）/ high（認証・決済・DB マイグレーション・公開 API・インフラ・削除系）
    - `budget`: s（1〜2 ファイル）/ m（1 モジュール）/ l（複数モジュール横断）
+   - **fullstack のルール**: FE と BE の両方を変える場合、仕様コメントに **API 契約の差分**（`contracts/` 配下の変更案、無ければリクエスト/レスポンスの型）を先に書く。budget が `l` なら 1 Issue のまま計画を「契約 → BE（契約に対するテスト）→ FE（契約のモックで開発）」の順にする。それ以外は BE 用と FE 用の 2 Issue に分割する案を「人間への質問」に書き、`decision` は `planned` のまま人間に選ばせる
 4. 完全性を確認する。次が揃っていなければ `decision: needs-info`:
    - 目的（誰の何の問題か）
    - **検証可能な**受け入れ基準（曖昧な形容詞だけのものは不可）
@@ -66,4 +68,4 @@
 
 ## 出力
 最後に、必ず次のスキーマの JSON だけを返す（ワークフローが `--json-schema` で検証します）:
-`{"decision": "...", "type": "...", "risk": "...", "budget": "...", "duplicate_of": null, "comment_markdown": "..."}`
+`{"decision": "...", "type": "...", "area": "...", "risk": "...", "budget": "...", "duplicate_of": null, "comment_markdown": "..."}`
