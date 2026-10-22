@@ -1,0 +1,51 @@
+name: factory / learn
+# ファクトリー由来の PR がマージされたら:
+#  1. Issue を factory:done にする
+#  2. レビューで人間が指摘・修正した内容から「次回同じ失敗をしないための改善」を
+#     AGENTS.md / docs / リンター に反映する PR を提案させる（OpenAI の harness engineering と同じ発想）。
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+
+jobs:
+  learn:
+    if: >-
+      github.event.pull_request.merged == true &&
+      startsWith(github.head_ref, 'factory/issue-')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ secrets.FACTORY_GITHUB_TOKEN || github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Mark issue done & archive exec plan pointer
+        run: |
+          issue=$(sed -E 's#^factory/issue-([0-9]+)-.*#\1#' <<<"${{ github.head_ref }}")
+          gh issue edit "$issue" -R "$GITHUB_REPOSITORY" --remove-label factory:in-review --add-label factory:done || true
+          echo "ISSUE_NUMBER=$issue" >> "$GITHUB_ENV"
+
+      - name: Extract lessons with Claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          branch_prefix: factory/learn-
+          base_branch: ${{ github.event.repository.default_branch }}
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR_NUMBER: ${{ github.event.pull_request.number }}
+            ISSUE_NUMBER: ${{ env.ISSUE_NUMBER }}
+
+            .github/factory/prompts/learn.md の手順に厳密に従ってください。
+          claude_args: |
+            --model ${{ vars.FACTORY_MODEL_LIGHT || 'claude-sonnet-5-5' }}
+            --max-turns 40
+            --allowedTools "Read,Write,Edit,MultiEdit,Glob,Grep,Bash(git:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr create:*),Bash(gh issue view:*),Bash(gh api repos/*/pulls/*),Bash(gh api repos/*/issues/*)"

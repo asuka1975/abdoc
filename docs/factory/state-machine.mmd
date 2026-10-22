@@ -1,0 +1,16 @@
+stateDiagram-v2
+    direction TB
+    [*] --> triage : Issue作成（テンプレートが自動ラベル）
+    triage --> needs_info : AI 情報不足→質問
+    needs_info --> triage : 人間が返信
+    triage --> planned : AI 仕様/計画/リスク/予算を提案
+    triage --> blocked : AI 重複・対象外の疑い
+    planned --> ready : 👤 人間が factory:ready（意図の承認）
+    ready --> building : build 起動（1 Issue=1ブランチ）
+    building --> in_review : Draft PR＋証拠
+    building --> blocked : 予算切れ/曖昧/実装不能
+    in_review --> in_review : CI失敗→heal（最大N回）/ @claude 指示
+    in_review --> blocked : heal上限/差し戻し
+    in_review --> done : 👤 人間が承認してマージ
+    blocked --> ready : 👤 人間が決定を書いて再ready
+    done --> [*] : learn が AGENTS.md/docs 改善PRを提案

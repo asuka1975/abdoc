@@ -1,0 +1,17 @@
+# ファクトリーの「人間のゲート」を機械的に強制する。
+# ブランチ保護で "Require review from Code Owners" を有効にすること。
+# OWNER 名は書き換える。
+
+# 既定: すべてのファクトリー PR に人間 1 名
+*                         @OWNER/engineers
+
+# risk:high 相当の領域は別チームの承認も必須（2 名）
+/migrations/              @OWNER/engineers @OWNER/data
+/src/auth/                @OWNER/engineers @OWNER/security
+/src/payments/            @OWNER/engineers @OWNER/security
+/infra/                   @OWNER/engineers @OWNER/platform
+
+# ファクトリー自身（ワークフロー・プロンプト・AGENTS.md）の変更はハーネス担当が見る
+/.github/                 @OWNER/platform
+/AGENTS.md                @OWNER/platform
+/scripts/factory/         @OWNER/platform

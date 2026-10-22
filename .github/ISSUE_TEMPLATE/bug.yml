@@ -1,0 +1,50 @@
+name: "🐛 バグ報告（ファクトリー）"
+description: "再現手順のある不具合。AI が再現 → 修正 → Draft PR まで行います。"
+title: "[bug] "
+labels: ["factory:triage", "type:bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        再現手順が具体的なほど AI は一発で直せます。足りなければ AI が質問を返します（`factory:needs-info`）。
+  - type: textarea
+    id: repro
+    attributes:
+      label: 再現手順
+      placeholder: |
+        1. …
+        2. …
+        3. …
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期待する振る舞い
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 実際の振る舞い（エラーメッセージ・ログ・スクショ）
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: バージョン / コミット / 環境
+      placeholder: "v1.4.2, main@abc1234, Chrome 130 / macOS"
+  - type: textarea
+    id: context
+    attributes:
+      label: 関連情報
+      description: Sentry/Datadog のリンク、関連 Issue、怪しいと思うファイル
+  - type: dropdown
+    id: risk
+    attributes:
+      label: 影響範囲（自己申告・AI が再評価します）
+      options:
+        - low（表示崩れ・ログ・軽微）
+        - medium（一部ユーザーの機能不全）
+        - high（データ破損・決済・認証・全ユーザー）
+      default: 1
