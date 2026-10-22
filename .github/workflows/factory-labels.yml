@@ -1,0 +1,23 @@
+name: factory / labels
+# ラベル定義（.github/factory/labels.yml）をリポジトリに同期する。
+# 導入時に一度 workflow_dispatch で実行すること（Issue テンプレートは存在しないラベルを付けられない）。
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [".github/factory/labels.yml"]
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EndBug/label-sync@v2
+        with:
+          config-file: .github/factory/labels.yml
+          delete-other-labels: false
+          token: ${{ github.token }}

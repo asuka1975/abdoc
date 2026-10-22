@@ -1,0 +1,54 @@
+name: factory / review
+# ファクトリー由来の PR（factory/* ブランチ）に AI レビューを付ける。
+# AI は Approve しない（Claude Code Action は仕様上 Approve できない）。マージ判断は人間。
+# レビューの深さは Issue の risk ラベルで変える（low=軽く / high=セキュリティ・マイグレーション・公開APIを重点）。
+on:
+  pull_request:
+    types: [opened, ready_for_review, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: read
+  id-token: write
+  actions: read
+
+concurrency:
+  group: factory-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    # fork からの PR は対象外（factory/* ブランチは同一リポジトリにしか存在しない）
+    # Draft のうちにレビューする（人間が見る前に AI の指摘で1周回しておく）
+    if: >-
+      startsWith(github.head_ref, 'factory/') &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Review with Claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # PR を開く／push するのは claude[bot]（Claude GitHub App）。
+          # Action は bot が起こしたイベントを既定で拒否するので、明示的に許可する。
+          allowed_bots: ${{ vars.FACTORY_BOT_LOGIN != '' && format('claude[bot],{0}', vars.FACTORY_BOT_LOGIN) || 'claude[bot]' }}
+          # 1 PR に 1 つのレビューコメントを更新し続ける（会話を汚さない）
+          use_sticky_comment: true
+          additional_permissions: |
+            actions: read
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR_NUMBER: ${{ github.event.pull_request.number }}
+            HEAD_BRANCH: ${{ github.head_ref }}
+
+            .github/factory/prompts/review.md の手順に厳密に従ってください。
+          claude_args: |
+            --model ${{ vars.FACTORY_MODEL_LIGHT || 'claude-sonnet-5-5' }}
+            --max-turns 40
+            --allowedTools "Read,Glob,Grep,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr checks:*),Bash(gh issue view:*),Bash(gh api repos/*/issues/*),Bash(gh api repos/*/pulls/*),Bash(gh run list:*),Bash(gh run view:*)"

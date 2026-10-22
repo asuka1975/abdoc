@@ -1,0 +1,6 @@
+# 空の Issue を禁止し、必ずテンプレート（＝factory:triage の自動付与）を通す
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 質問・相談
+    url: https://github.com/OWNER/REPO/discussions
+    about: 実装依頼ではない質問は Discussions へ（OWNER/REPO を書き換えてください）

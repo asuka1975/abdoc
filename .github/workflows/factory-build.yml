@@ -1,0 +1,93 @@
+name: factory / build
+# 人間が Issue に factory:ready を付けたら起動。1 Issue = 1 ブランチ = 1 Draft PR。
+# すでに PR があれば新しいブランチは作らず、PR 上で @claude に続行を依頼する（冪等）。
+#
+# 権限設計: このジョブが持つ秘密情報は ANTHROPIC_API_KEY と GitHub トークンだけ。
+#   本番 DB・クラウドの資格情報はここに置かない（デプロイは別ワークフロー＋環境保護で行う）。
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+  actions: read
+
+concurrency:
+  group: factory-build-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+env:
+  ISSUE_NUMBER: ${{ github.event.issue.number }}
+  BASE_BRANCH: ${{ github.event.repository.default_branch }}
+  # 決定的な副作用（PR作成・コメント・ラベル）は FACTORY_GITHUB_TOKEN で行う。
+  # GITHUB_TOKEN で作った PR/コメントは後続ワークフロー（CI/review/chat）を起動しないため。
+  GH_TOKEN: ${{ secrets.FACTORY_GITHUB_TOKEN || github.token }}
+
+jobs:
+  build:
+    if: github.event.label.name == 'factory:ready'
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ contains(github.event.issue.labels.*.name, 'budget:l') && 180 || contains(github.event.issue.labels.*.name, 'budget:s') && 45 || 90 }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resume on existing PR instead of starting over
+        id: existing
+        run: |
+          pr=$(gh pr list -R "$GITHUB_REPOSITORY" --state open --json number,headRefName \
+                --jq ".[] | select(.headRefName | startswith(\"factory/issue-${ISSUE_NUMBER}-\")) | .number" | head -n1)
+          echo "pr=${pr}" >> "$GITHUB_OUTPUT"
+          if [ -n "$pr" ]; then
+            gh issue edit "$ISSUE_NUMBER" -R "$GITHUB_REPOSITORY" --remove-label factory:ready --add-label factory:in-review
+            gh pr comment "$pr" -R "$GITHUB_REPOSITORY" --body "@claude Issue #${ISSUE_NUMBER} が再度 \`factory:ready\` になりました。Issue の最新コメント（特に \`<!-- factory:spec -->\` と人間の回答）を読み、\`docs/exec-plans/active/issue-${ISSUE_NUMBER}.md\` の進捗から作業を続けてください。.github/factory/prompts/build.md の規約に従うこと。"
+            echo "existing PR #$pr → resumed via comment"
+          fi
+
+      - name: Mark building
+        if: steps.existing.outputs.pr == ''
+        run: |
+          gh issue edit "$ISSUE_NUMBER" -R "$GITHUB_REPOSITORY" \
+            --remove-label factory:ready --add-label factory:building
+
+      - name: Setup toolchain (project specific)
+        if: steps.existing.outputs.pr == ''
+        run: bash scripts/factory/setup.sh
+
+      - name: Build with Claude Code
+        if: steps.existing.outputs.pr == ''
+        id: agent
+        continue-on-error: true
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Issue 起点では action が新しいブランチを作る（factory/issue-<N>-<timestamp>）
+          branch_prefix: factory/
+          base_branch: ${{ github.event.repository.default_branch }}
+          # Issue 本文・コメント・仕様コメントをコンテキストに含め、進捗コメントを更新させる
+          track_progress: true
+          additional_permissions: |
+            actions: read
+          prompt: |
+            REPO: ${{ github.repository }}
+            ISSUE_NUMBER: ${{ github.event.issue.number }}
+            BASE_BRANCH: ${{ github.event.repository.default_branch }}
+
+            .github/factory/prompts/build.md の手順に厳密に従ってください。
+            仕様の正は Issue の `<!-- factory:spec -->` コメント（人間が編集済みならそれ）です。
+          claude_args: |
+            --model ${{ vars.FACTORY_MODEL_BUILD || 'claude-opus-5-5' }}
+            --max-turns ${{ contains(github.event.issue.labels.*.name, 'budget:l') && 150 || contains(github.event.issue.labels.*.name, 'budget:s') && 40 || 80 }}
+            --allowedTools "Read,Write,Edit,MultiEdit,Glob,Grep,Bash(bash scripts/factory/*),Bash(npm:*),Bash(npx:*),Bash(pnpm:*),Bash(yarn:*),Bash(make:*),Bash(pytest:*),Bash(python:*),Bash(go:*),Bash(cargo:*),Bash(git:*),Bash(gh pr create:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh issue view:*),Bash(gh api repos/*/issues/*)"
+
+      - name: Finalize (labels / ensure Draft PR / block on failure)
+        if: steps.existing.outputs.pr == ''
+        env:
+          AGENT_CONCLUSION: ${{ steps.agent.outputs.conclusion }}
+          AGENT_BRANCH: ${{ steps.agent.outputs.branch_name }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: bash scripts/factory/finalize-build.sh

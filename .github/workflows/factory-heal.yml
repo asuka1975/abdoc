@@ -1,0 +1,55 @@
+name: factory / heal
+# ファクトリー由来の PR で CI が落ちたら、回数制限付きで自動修復を依頼する。
+# 検知と回数管理は決定的（このワークフロー）、修復は PR 上の @claude（factory / chat）に任せる。
+#   → 修復エージェントは「既存 PR ブランチに push する」モードで動くので、ブランチが増えない。
+#
+# 要: FACTORY_GITHUB_TOKEN（GITHUB_TOKEN で付けたコメントは factory / chat を起動しないため）
+on:
+  workflow_run:
+    workflows: ["CI"]   # ← プロジェクトの CI ワークフロー名に合わせる
+    types: [completed]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  heal:
+    if: >-
+      github.event.workflow_run.conclusion == 'failure' &&
+      startsWith(github.event.workflow_run.head_branch, 'factory/issue-')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ secrets.FACTORY_GITHUB_TOKEN || github.token }}
+      BRANCH: ${{ github.event.workflow_run.head_branch }}
+      RUN_ID: ${{ github.event.workflow_run.id }}
+      RUN_URL: ${{ github.event.workflow_run.html_url }}
+      MAX_HEALS: ${{ vars.FACTORY_MAX_HEALS || 2 }}
+    steps:
+      - name: Request a bounded fix on the PR
+        run: |
+          R="$GITHUB_REPOSITORY"
+          pr=$(gh pr list -R "$R" --head "$BRANCH" --state open --json number --jq '.[0].number // empty')
+          if [ -z "$pr" ]; then echo "no open PR for $BRANCH"; exit 0; fi
+
+          issue=$(sed -E 's#^factory/issue-([0-9]+)-.*#\1#' <<<"$BRANCH")
+          attempts=$(gh pr view "$pr" -R "$R" --json labels \
+                       --jq '[.labels[].name | select(startswith("heal:"))] | length')
+
+          if [ "$attempts" -ge "$MAX_HEALS" ]; then
+            gh issue edit "$issue" -R "$R" --remove-label factory:in-review --add-label factory:blocked || true
+            body="🛑 CI の自動修復を ${MAX_HEALS} 回試みましたが失敗が続いています。人間の判断が必要です（Issue #${issue} を \`factory:blocked\` にしました）。
+          最後の失敗: ${RUN_URL}
+
+          よくある原因: 仕様の矛盾 / 環境依存のテスト / フレーキーテスト。方針を決めてコメントし、必要なら \`@claude\` に指示してください。"
+            gh pr comment "$pr" -R "$R" --body "$body"
+            exit 0
+          fi
+
+          next=$((attempts + 1))
+          gh pr edit "$pr" -R "$R" --add-label "heal:${next}"
+          body="@claude CI run ${RUN_ID} が失敗しました（自動修復 ${next}/${MAX_HEALS} 回目）: ${RUN_URL}
+          .github/factory/prompts/heal.md の手順に従って修復してください。テストを削除・skip・緩めて通すことは禁止です。"
+          gh pr comment "$pr" -R "$R" --body "$body"

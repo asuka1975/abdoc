@@ -1,0 +1,84 @@
+name: factory / intake
+# 受付: Issue が作られたら AI が「分類・重複確認・完全性チェック・仕様案」を行う。
+# AI はラベルやコメントを直接触らず、構造化出力(JSON)で判断だけ返す。
+# 反映は scripts/factory/apply-intake.sh（決定的なスクリプト）が行う。
+#
+# セキュリティ: Issue 本文は誰でも書ける＝信頼できない入力。
+#   - contents: read のみ（コードは変更できない）
+#   - 使えるツールは読み取りと gh の参照系だけ
+#   - 本番の秘密情報は一切渡さない
+on:
+  issues:
+    types: [opened, edited, reopened]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  issues: write
+  id-token: write
+
+concurrency:
+  group: factory-intake-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  triage:
+    # 起動条件:
+    #  (a) Issue イベントで factory:triage が付いている
+    #  (b) factory:needs-info の Issue に人間（Bot 以外）がコメントした
+    if: >-
+      (github.event_name == 'issues' &&
+        contains(github.event.issue.labels.*.name, 'factory:triage')) ||
+      (github.event_name == 'issue_comment' &&
+        !github.event.issue.pull_request &&
+        contains(github.event.issue.labels.*.name, 'factory:needs-info') &&
+        github.event.comment.user.type != 'Bot')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      GH_TOKEN: ${{ secrets.FACTORY_GITHUB_TOKEN || github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Mark triage (when re-triggered by a reply)
+        if: github.event_name == 'issue_comment'
+        run: |
+          gh issue edit "$ISSUE_NUMBER" -R "$GITHUB_REPOSITORY" \
+            --remove-label factory:needs-info --add-label factory:triage
+
+      - name: Intake with Claude (judgment only)
+        id: intake
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Issue 作成者は write 権限を持たないことがあるため必要（intake は読み取り専用なので許容）
+          allowed_non_write_users: "*"
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: |
+            REPO: ${{ github.repository }}
+            ISSUE_NUMBER: ${{ github.event.issue.number }}
+            EVENT: ${{ github.event_name }}
+
+            .github/factory/prompts/intake.md の手順に厳密に従い、最後に JSON で判断を返してください。
+          claude_args: |
+            --model ${{ vars.FACTORY_MODEL_LIGHT || 'claude-sonnet-5-5' }}
+            --max-turns 30
+            --allowedTools "Read,Glob,Grep,Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh search issues:*),Bash(gh pr list:*),Bash(gh api repos/*/issues/*)"
+            --json-schema '{"type":"object","properties":{"decision":{"type":"string","enum":["needs-info","planned","blocked"]},"type":{"type":"string","enum":["bug","feature","docs","chore"]},"risk":{"type":"string","enum":["low","medium","high"]},"budget":{"type":"string","enum":["s","m","l"]},"duplicate_of":{"type":["integer","null"]},"comment_markdown":{"type":"string"}},"required":["decision","type","risk","budget","comment_markdown"]}'
+
+      - name: Apply decision (labels + sticky spec comment)
+        env:
+          INTAKE_JSON: ${{ steps.intake.outputs.structured_output }}
+        run: bash scripts/factory/apply-intake.sh
+
+      - name: Fallback to blocked if the agent failed
+        if: failure()
+        run: |
+          gh issue edit "$ISSUE_NUMBER" -R "$GITHUB_REPOSITORY" \
+            --remove-label factory:triage --add-label factory:blocked || true
+          gh issue comment "$ISSUE_NUMBER" -R "$GITHUB_REPOSITORY" \
+            --body "⚠️ 受付エージェントが異常終了しました（run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}）。人間が確認して \`factory:triage\` を付け直すか、手で仕様を書いて \`factory:ready\` にしてください。"

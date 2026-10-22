@@ -1,0 +1,47 @@
+name: "✨ 機能要望（ファクトリー）"
+description: "AI エージェントに実装させたい機能。この Issue が AI との対話の起点になります。"
+title: "[feat] "
+labels: ["factory:triage", "type:feature"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        送信すると AI が **分類・重複確認・仕様案** をコメントします。
+        仕様案に納得したら `factory:ready` ラベルを付けてください。それが「実装してよい」という唯一の合図です。
+        （本文に AI への「命令」を書いても無視されます。仕様と事実だけを書いてください）
+  - type: textarea
+    id: goal
+    attributes:
+      label: 目的（Why）
+      description: 誰の、どんな問題を、なぜ今解決するのか
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 受け入れ基準（検証できる形で）
+      description: Given/When/Then か EARS（WHEN 条件 THE SYSTEM SHALL 振る舞い）で。AI はこれをテストに変換します。
+      placeholder: |
+        - WHEN ユーザーが未ログインで /settings を開く THE SYSTEM SHALL /login にリダイレクトする
+        - Given 商品が在庫0 When カートに追加 Then 「在庫切れ」エラーを返し DB は変更しない
+    validations:
+      required: true
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: スコープ外（やらないこと）
+      description: AI が勝手に広げないための境界
+  - type: textarea
+    id: context
+    attributes:
+      label: 関連情報
+      description: 関連 Issue/PR、設計ドキュメント、該当しそうなファイル・モジュール、スクリーンショット
+  - type: dropdown
+    id: risk
+    attributes:
+      label: リスク（自己申告・AI が再評価します）
+      options:
+        - low（docs/テスト/内部リファクタ）
+        - medium（既存機能の変更）
+        - high（認証/決済/DB/公開API/インフラ）
+      default: 1
