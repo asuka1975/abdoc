@@ -14,6 +14,7 @@ BE_DIR="backend"
 
 setup_fe() {
   echo "== setup fe ($FE_DIR) =="
+  [ -f "$FE_DIR/package.json" ] || { echo "skip fe: $FE_DIR/package.json が無い（雛形が入るまで）"; return 0; }
   pushd "$FE_DIR" >/dev/null
   if [ -f pnpm-lock.yaml ]; then corepack enable && pnpm install --frozen-lockfile
   elif [ -f yarn.lock ]; then corepack enable && yarn install --immutable
@@ -28,6 +29,7 @@ setup_fe() {
 
 setup_be() {
   echo "== setup be ($BE_DIR) =="
+  [ -f "$BE_DIR/go.mod" ] || { echo "skip be: $BE_DIR/go.mod が無い（雛形が入るまで）"; return 0; }
   pushd "$BE_DIR" >/dev/null
   go version
   go mod download

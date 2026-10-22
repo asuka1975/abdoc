@@ -1,31 +1,14 @@
-# AGENTS.md — フロントエンド（`frontend/`）
+# AGENTS.md — `frontend/`（**まだコードが無い**）
 
-<!-- 一般論は書かない。このディレクトリ固有のコマンド・境界・禁止事項だけ。 -->
+このディレクトリは雛形待ちです。**ここに書かれていないことを推測しないでください。**
+正は次の 2 つだけです。
 
-## コマンド（このディレクトリで実行）
-| 目的 | コマンド |
-|---|---|
-| 依存 | `pnpm install --frozen-lockfile` |
-| 開発サーバ | `pnpm dev`（http://localhost:3000） |
-| 単体テスト | `pnpm test` |
-| 特定テスト | `pnpm test -- src/path/to/file.test.tsx` |
-| 型・リント | `pnpm typecheck && pnpm lint` |
-| E2E | `pnpm e2e`（Playwright。BE はモック or `pnpm dev:mock`） |
-| ビルド | `pnpm build` |
+1. `docs/PRODUCT.md` — 何を作るか、スタック、規約
+2. 雛形 Issue の `<!-- factory:spec -->` コメント — 受け入れ基準
 
-## 構成と境界
-- フレームワーク: **（例: Next.js 15 App Router / React 19 / TypeScript strict）**
-- `src/app/` ルーティングのみ。ロジックは `src/features/<domain>/` に置く。
-- API 呼び出しは `src/api/`（契約から生成したクライアント）経由のみ。`fetch` を直接書かない。
-- 状態管理: **（例: TanStack Query をサーバ状態に、Zustand を UI 状態に）**
-- スタイル: **（例: Tailwind。インライン style は禁止）**
-
-## 禁止・注意
-- `src/api/generated/` は手で編集しない（`pnpm generate:api` で再生成）。
-- 新しい UI コンポーネントは既存のデザインシステム（`src/components/ui/`）を使う。独自に色やサイズを決めない。
-- `any` と `@ts-ignore` を足さない。必要なら「人間への質問」に書く。
-- アクセシビリティ: インタラクティブ要素にラベル、キーボード操作可、`eslint-plugin-jsx-a11y` を通す。
-
-## 検証の証拠（PR 本文に書くもの）
-- 変更した画面のスクリーンショット（before/after）、または Playwright のトレース。
-- `pnpm build` が通ること（型エラーは build で止まる）。
+## 雛形を作るときの約束
+- 最初の PR で、この AGENTS.md を **実コードに基づくコマンド表・構成・禁止事項** に書き換える（`.github/factory/templates/AGENTS.fe.md` を叩き台にしてよいが、実際に動くコマンドだけを書く）
+- `bash scripts/factory/setup.sh fe` が素の checkout で通る状態にする（`scripts/factory/setup.sh` の `setup_fe` を実態に合わせて直してよい）
+- CI（`.github/workflows/ci-*.yml`）はマニフェストが置かれると自動で有効になる。緑にしてから PR を Ready にする
+- `.env.example` と `README.md`（このディレクトリ用、起動手順 10 行）を置く
+- 依存は最小。PRODUCT.md に無いライブラリ・サービスを足すときは PR 本文に理由を書く
