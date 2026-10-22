@@ -80,5 +80,9 @@ jobs:
         run: |
           gh issue edit "$ISSUE_NUMBER" -R "$GITHUB_REPOSITORY" \
             --remove-label factory:triage --add-label factory:blocked || true
-          gh issue comment "$ISSUE_NUMBER" -R "$GITHUB_REPOSITORY" \
-            --body "⚠️ 受付エージェントが異常終了しました（run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}）。人間が確認して \`factory:triage\` を付け直すか、手で仕様を書いて \`factory:ready\` にしてください。"
+          # URL は行末に置く（直後に全角文字を続けると自動リンクが URL に取り込んでしまう）
+          body="⚠️ 受付エージェントが異常終了しました。
+          ログ: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+          人間が確認して \`factory:triage\` を付け直すか、手で仕様を書いて \`factory:ready\` にしてください。Secret やラベルの不備は \`bash scripts/factory/doctor.sh\` で検査できます。"
+          gh issue comment "$ISSUE_NUMBER" -R "$GITHUB_REPOSITORY" --body "$body"
