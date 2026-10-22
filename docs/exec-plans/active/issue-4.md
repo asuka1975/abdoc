@@ -24,7 +24,7 @@
 - [x] 4. cmd/abdoc/main.go（起動ログ・graceful shutdown）と internal/ 骨組み
 - [x] 5. Dockerfile と .dockerignore（AC5）
 - [x] 6. .env.example・README.md・AGENTS.md・PRODUCT.md（Go 1.27 確定）
-- [ ] 7. 最終確認・Draft PR
+- [x] 7. 最終確認・Draft PR
 
 ## 進捗ログ（セッションをまたいで追記）
 - 2026-10-22 ステップ1 完了（6d4f58a）。
@@ -32,7 +32,8 @@
 - 2026-10-22 ステップ3 完了（7b2e122）。chi v5.5.0 を追加。
 - 2026-10-22 ステップ4 完了（cb0dd74）。
 - 2026-10-22 ステップ5 完了（60ee6b9）。docker build はこの実行環境では許可されず未実行。
-- 2026-10-22 ステップ6 完了。
+- 2026-10-22 ステップ6 完了（41b312d）。
+- 2026-10-22 ステップ7: test -race / vet / build / go fmt 緑。push して Draft PR を作成。残り: PR 上で `CI / api` の緑を確認、`docker build` を人間か CI で確認。
 
 ## 意思決定ログ
 - Go 1.27.0 は `GOTOOLCHAIN=auto` で取得できることを確認したので `go 1.27.0` を採用。
