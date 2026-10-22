@@ -42,7 +42,8 @@ jobs:
 
           if [ "$attempts" -ge "$MAX_HEALS" ]; then
             gh issue edit "$issue" -R "$R" --remove-label factory:in-review --add-label factory:blocked || true
-            body="🛑 CI の自動修復を ${MAX_HEALS} 回試みましたが失敗が続いています。人間の判断が必要です（Issue #${issue} を \`factory:blocked\` にしました）。
+            body="<!-- factory:bot -->
+          🛑 CI の自動修復を ${MAX_HEALS} 回試みましたが失敗が続いています。人間の判断が必要です（Issue #${issue} を \`factory:blocked\` にしました）。
           最後の失敗: ${RUN_URL}
 
           よくある原因: 仕様の矛盾 / 環境依存のテスト / フレーキーテスト。方針を決めてコメントし、必要なら \`@claude\` に指示してください。"

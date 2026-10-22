@@ -18,17 +18,27 @@ permissions:
   id-token: write
   actions: read
 
-concurrency:
-  group: factory-chat-${{ github.event.issue.number || github.event.pull_request.number }}
-  cancel-in-progress: false
-
 jobs:
   chat:
+    # 起動条件: @claude を含み、工場のマーカー（<!-- factory: ）が無く、投稿者が Bot でない
+    #   （例外: FACTORY_BOT_LOGIN に設定した自前 App。heal → chat の連鎖に使う）
+    #   claude[bot] 自身の進捗・レビューコメントに含まれる "@claude" で再帰しないための条件
     if: >-
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude'))
+      (
+        (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude'))
+      ) &&
+      !contains(github.event.comment.body || github.event.review.body, '<!-- factory:') &&
+      (
+        (github.event.comment.user.type || github.event.review.user.type) != 'Bot' ||
+        (github.event.comment.user.login || github.event.review.user.login) == vars.FACTORY_BOT_LOGIN
+      )
     runs-on: ubuntu-latest
+    # ジョブ単位の concurrency: skip される run が正規の @claude 依頼を pending 枠から追い出さないように
+    concurrency:
+      group: factory-chat-${{ github.event.issue.number || github.event.pull_request.number }}
+      cancel-in-progress: false
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4

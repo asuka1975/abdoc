@@ -22,6 +22,7 @@ if [ -z "$branch" ]; then
   # 何も push されていない = 実装に着手できなかった
   gh issue edit "$ISSUE_NUMBER" -R "$R" --remove-label factory:building --add-label factory:blocked
   gh issue comment "$ISSUE_NUMBER" -R "$R" --body "$(cat <<EOF
+<!-- factory:bot -->
 ⚠️ build エージェントはブランチを作成できませんでした（conclusion: \`$conclusion\`）。
 ログ: $RUN_URL
 
@@ -45,11 +46,13 @@ fi
 gh issue edit "$ISSUE_NUMBER" -R "$R" --remove-label factory:building --add-label factory:in-review
 
 if [ "$conclusion" != "success" ]; then
+  # 「@claude」を本文に書くと chat が誤発火するので、人間への案内は言い換える
   gh pr comment "$pr" -R "$R" --body "$(cat <<EOF
+<!-- factory:bot -->
 ⚠️ build エージェントは異常終了しました（conclusion: \`$conclusion\`、予算切れの可能性）。ブランチと PR は残っています。
 ログ: $RUN_URL
 
-続行する場合はこの PR で \`@claude docs/exec-plans/active/issue-${ISSUE_NUMBER}.md の進捗から続けてください\` とコメントしてください。
+続行する場合は、この PR に「docs/exec-plans/active/issue-${ISSUE_NUMBER}.md の進捗から続けてください」とコメントし、先頭で claude をメンションしてください。
 EOF
 )"
 fi
