@@ -17,7 +17,8 @@ CI は `.github/workflows/ci-api.yml`（`CI / api`）: gofmt → vet → build �
 - `cmd/abdoc/` — エントリポイント。設定読み込み・ロガー生成・HTTP サーバ起動と graceful shutdown（`run(ctx, logOut)` をテストする）
 - `internal/config/` — 環境変数から設定を読む（現在は `PORT`、既定 `8080`）。環境変数を増やしたら `.env.example` も更新する
 - `internal/logging/` — slog の JSON ハンドラ。キーは Cloud Logging 向けに `message` / `severity`
-- `internal/transport/http/` — chi ルータとハンドラ（`GET /healthz`）。ルートは `NewRouter` に追加する
+- `internal/transport/http/` — chi ルータとハンドラ（`GET /healthz`）。ハンドラは生成された `api.ServerInterface` のメソッドとして実装する（ルートは生成コードが登録する）
+- `internal/transport/http/api/` — `contracts/openapi.yaml` からの生成物（`make generate`、設定は `oapi-codegen.yaml`）。手で編集しない
 - `internal/app/` — ユースケース（空）
 - `internal/domain/` — ドメインモデル（空）。標準ライブラリ以外を import しない
 - `internal/store/` — Firestore / BigQuery への永続化（空）。外部データストアに触るのはここだけ

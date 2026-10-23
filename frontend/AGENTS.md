@@ -24,7 +24,7 @@
 
 ## 禁止・注意
 - 新しい公開環境変数は `PUBLIC_` 接頭辞を付け、`src/env.d.ts` と `.env.example` を同時に更新する。
-- 契約（`contracts/`）から生成したクライアント・型ができたら手で編集しない（まだ無い）。
+- `src/api/generated/` は `contracts/openapi.yaml` からの生成物（`make generate`）。手で編集しない。API は `src/api/client.ts` の `createApiClient` 経由で呼ぶ。
 - `any` と `@ts-ignore` を足さない。必要なら「人間への質問」に書く。
 - `eslint-plugin-jsx-a11y` は ESLint 10 未対応。差し替えない（`-x` フォークを使う）。
 - Astro 7 の `astro dev` はエージェント実行を検知すると自動でバックグラウンド化する（止めるのは `pnpm exec astro dev stop`）。`playwright.config.ts` の webServer はそれを避けるため `--ignore-lock` を付けている。外さない。
