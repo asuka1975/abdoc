@@ -25,7 +25,7 @@ jobs:
       - if: steps.code.outputs.present == 'true'
         uses: actions/setup-node@v4
         with:
-          node-version: "22"          # .nvmrc を置いたら node-version-file: "frontend/.nvmrc" に
+          node-version-file: "frontend/.nvmrc"
       - if: steps.code.outputs.present == 'true'
         run: corepack enable && pnpm install --frozen-lockfile
       - if: steps.code.outputs.present == 'true'
