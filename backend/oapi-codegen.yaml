@@ -1,0 +1,7 @@
+# oapi-codegen の設定。入力は ../contracts/openapi.yaml（scripts/generate.sh から実行される）。
+# 生成物は手で編集しない。
+package: api
+output: internal/transport/http/api/api.gen.go
+generate:
+  chi-server: true
+  models: true
