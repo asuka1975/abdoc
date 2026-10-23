@@ -29,6 +29,10 @@ jobs:
           cache-dependency-path: "backend/go.sum"
       - if: steps.code.outputs.present == 'true'
         run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+      # 生成パイプライン（scripts/generate.sh）が入るまではスキップ
+      - if: steps.code.outputs.present == 'true' && hashFiles('scripts/generate.sh') != ''
+        name: generated code is up to date
+        run: bash ../scripts/generate.sh be && git diff --exit-code
       - if: steps.code.outputs.present == 'true'
         run: go vet ./...
       - if: steps.code.outputs.present == 'true'
