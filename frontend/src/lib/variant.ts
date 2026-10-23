@@ -88,7 +88,7 @@ export function assignVariant(
 }
 
 /** 割り当てた版だけを表示し、もう片方を隠す */
-export function applyVariant(elements: Record<Variant, { hidden: boolean }>, variant: Variant): void {
+export function applyVariant(elements: Record<Variant, Pick<HTMLElement, "hidden">>, variant: Variant): void {
   elements.A.hidden = variant !== "A";
   elements.B.hidden = variant !== "B";
 }

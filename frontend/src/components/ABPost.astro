@@ -1,0 +1,68 @@
+---
+/**
+ * A/B 記事の本体。両版とも `hidden` で出力し、スクリプトが訪問者 × 記事ごとに片方だけを表示する。
+ * 本文はスロット `a` / `b` に渡す（`src/pages/posts/[slug].astro` が Markdown を描画して渡す）。
+ */
+interface Props {
+  slug: string;
+  /** A が選ばれる確率（0〜1） */
+  ratio: number;
+  titleA: string;
+  titleB: string;
+}
+
+const { slug, ratio, titleA, titleB } = Astro.props;
+---
+
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{titleA}</title>
+    <noscript>
+      <!-- JS 無効時は A を表示する -->
+      <style is:inline>
+        [data-ab-post] [data-variant="A"][hidden] {
+          display: block;
+        }
+      </style>
+    </noscript>
+  </head>
+  <body>
+    <main data-ab-post data-slug={slug} data-ratio={String(ratio)}>
+      <article data-variant="A" data-title={titleA} hidden>
+        <h1>{titleA}</h1>
+        <slot name="a" />
+      </article>
+      <article data-variant="B" data-title={titleB} hidden>
+        <h1>{titleB}</h1>
+        <slot name="b" />
+      </article>
+    </main>
+    <script>
+      import { applyVariant, assignVariant, createVariantStore, parseRatio } from "../lib/variant";
+
+      const store = createVariantStore(() => window.localStorage);
+      for (const root of document.querySelectorAll<HTMLElement>("[data-ab-post]")) {
+        const slug = root.dataset.slug;
+        const a = root.querySelector<HTMLElement>('[data-variant="A"]');
+        const b = root.querySelector<HTMLElement>('[data-variant="B"]');
+        if (!slug || !a || !b) continue;
+
+        const variant = assignVariant(slug, parseRatio(root.dataset.ratio), { store, random: Math.random });
+        applyVariant({ A: a, B: b }, variant);
+        const title = (variant === "A" ? a : b).dataset.title;
+        if (title) document.title = title;
+      }
+    </script>
+  </body>
+</html>
+
+<style>
+  main {
+    max-width: 40rem;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+    font-family: system-ui, sans-serif;
+  }
+</style>

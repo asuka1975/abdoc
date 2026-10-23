@@ -1,0 +1,32 @@
+---
+import { getCollection, render } from "astro:content";
+import ABPost from "../../components/ABPost.astro";
+
+/** `src/content/posts/<slug>/{a,b}.md` を `/posts/<slug>/` の 1 ページに両方描画する */
+export async function getStaticPaths() {
+  const postsA = await getCollection("postsA");
+  const postsB = await getCollection("postsB");
+
+  const missingA = postsB.filter((b) => !postsA.some((a) => a.id === b.id)).map((b) => b.id);
+  const missingB = postsA.filter((a) => !postsB.some((b) => b.id === a.id)).map((a) => a.id);
+  if (missingA.length > 0 || missingB.length > 0) {
+    throw new Error(
+      `記事には a.md と b.md の両方が必要です（a.md が無い: ${missingA.join(", ") || "なし"} / b.md が無い: ${missingB.join(", ") || "なし"}）`,
+    );
+  }
+
+  return postsA.flatMap((a) => {
+    const b = postsB.find((entry) => entry.id === a.id);
+    return b ? [{ params: { slug: a.id }, props: { a, b } }] : [];
+  });
+}
+
+const { a, b } = Astro.props;
+const { Content: ContentA } = await render(a);
+const { Content: ContentB } = await render(b);
+---
+
+<ABPost slug={a.id} ratio={a.data.ratio} titleA={a.data.title} titleB={b.data.title}>
+  <ContentA slot="a" />
+  <ContentB slot="b" />
+</ABPost>
