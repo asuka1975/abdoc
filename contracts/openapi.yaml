@@ -1,0 +1,26 @@
+# FE と BE の API 契約（正）。変更したら `make generate` で両側の生成物を更新する。
+openapi: 3.1.0
+info:
+  title: abdoc API
+  version: 0.1.0
+paths:
+  /healthz:
+    get:
+      operationId: getHealthz
+      summary: ヘルスチェック
+      responses:
+        "200":
+          description: サーバが稼働している
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+components:
+  schemas:
+    Health:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok]
