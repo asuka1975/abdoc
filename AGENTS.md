@@ -18,7 +18,10 @@
 **作業する領域の AGENTS.md を必ず先に読む。** 他領域のファイルは、仕様に明記が無い限り触らない。
 
 ## FE と BE の契約
-- API の正は `contracts/`（OpenAPI など。無ければ BE のハンドラ定義）。**生成物（型・クライアント）は手で編集しない**。契約を変えて再生成する。
+- API の正は `contracts/openapi.yaml`（OpenAPI 3.1）。**生成物は手で編集しない**。契約を変えて `make generate`（= `bash scripts/generate.sh [be|fe|all]`）で再生成し、生成物もコミットする。
+  - BE: `backend/internal/transport/http/api/api.gen.go`（oapi-codegen、chi の `ServerInterface`。設定 `backend/oapi-codegen.yaml`、版は `backend/go.mod` の `tool`）。ハンドラは `internal/transport/http` で `ServerInterface` を実装する。
+  - FE: `frontend/src/api/generated/schema.ts`（openapi-typescript、版は `frontend/package.json`）。呼び出しは `frontend/src/api/client.ts`（openapi-fetch）経由。
+  - 前提: Go（`go.mod` の版）と `frontend` で `pnpm install` 済み。CI は再生成後の `git diff --exit-code` で生成物の手編集・再生成漏れを弾く。
 - 契約を変える変更は `risk:medium` 以上。FE と BE の両方のテストを通す。
 - 後方互換を壊す変更（フィールド削除・型変更）は PR 本文に移行手順を書く。
 
