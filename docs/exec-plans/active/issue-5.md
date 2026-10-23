@@ -38,6 +38,8 @@
 - Astro 7 の `astro dev` はエージェント検知で自動バックグラウンド化するので、Playwright webServer は `astro dev --ignore-lock` で起動する。
 - `.github/workflows/ci-web.yml` は Node 22 固定。エージェントはワークフローを編集できないため変更していない（人間への質問 #1）。
 
+- 2026-10-23 人間の回答: (1) `ci-web.yml` を `node-version-file: "frontend/.nvmrc"` に変更済み（main の bf802a2, #12）。(2) CI への E2E 追加は別 Issue で対応する。
+
 ## 人間への質問
-1. `ci-web.yml` の `node-version: "22"` を `node-version-file: "frontend/.nvmrc"`（= 24）に変えてください（エージェントはワークフローを編集できません）。現状でも Node 22 で緑になる見込み（`engines` 不一致は警告のみ）。
-2. `ci-web.yml` は `pnpm e2e` を実行しません。E2E を CI に入れるかは別 Issue でよいですか。
+1. ~~`ci-web.yml` の `node-version: "22"` を `node-version-file: "frontend/.nvmrc"`（= 24）に変えてください。~~ → 回答: 変更済み（bf802a2）
+2. ~~`ci-web.yml` は `pnpm e2e` を実行しません。E2E を CI に入れるかは別 Issue でよいですか。~~ → 回答: 別 Issue でよい
