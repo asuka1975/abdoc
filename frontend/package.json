@@ -16,7 +16,8 @@
     "e2e": "playwright test"
   },
   "dependencies": {
-    "astro": "^7.4.2"
+    "astro": "^7.4.2",
+    "openapi-fetch": "^0.17.0"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.12",
@@ -25,6 +26,7 @@
     "eslint": "^10.13.0",
     "eslint-plugin-astro": "^3.2.1",
     "eslint-plugin-jsx-a11y-x": "^0.2.0",
+    "openapi-typescript": "^7.13.0",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.72.0",
     "vitest": "^5.0.5"
