@@ -12,7 +12,7 @@
 | AC2 go test で healthz テストが通る | `internal/transport/http` の `TestHealthz`, `TestHealthzOverServer` | 緑 |
 | AC3 200 / `{"status":"ok"}` / JSON Content-Type | `TestHealthz`, `cmd/abdoc` の `TestRunServesHealthzAndLogsJSON` | 緑 |
 | AC4 CI / api が緑 | PR のチェック | PR で確認 |
-| AC5 Dockerfile（マルチステージ・非 root・PORT） | `internal/config` の `TestLoad*` | 緑（`docker build` は環境の権限で未実行） |
+| AC5 Dockerfile（マルチステージ・非 root・PORT） | `internal/config` の `TestLoad*`、人間による `docker build` / `docker run` 確認 | 緑（2026-10-23 人間が `aef93a5` で確認） |
 | AC6 AGENTS.md に「例:」が無い | `grep -n '例:' backend/AGENTS.md` → 0 件 | 緑 |
 | AC7 .env.example / README.md | 存在確認。コードが読む環境変数は `PORT` のみ（`os.Getenv` は config.go の 1 箇所） | 緑 |
 | AC8 起動ログが JSON | `internal/logging` の `TestNewWritesCloudLoggingJSON` / `TestSeverityMapping`、`cmd/abdoc` の `TestRunServesHealthzAndLogsJSON` | 緑 |
@@ -34,6 +34,7 @@
 - 2026-10-22 ステップ5 完了（60ee6b9）。docker build はこの実行環境では許可されず未実行。
 - 2026-10-22 ステップ6 完了（41b312d）。
 - 2026-10-22 ステップ7: test -race / vet / build / go fmt 緑。push して Draft PR を作成。残り: PR 上で `CI / api` の緑を確認、`docker build` を人間か CI で確認。
+- 2026-10-23 質問1 の回答: 人間が `aef93a5` をローカルで確認。`docker build` 成功（実行イメージ 9.84MB）。PORT 未設定→8080 / `PORT=9090`→9090 でどちらも `GET /healthz` が 200・JSON・`{"status":"ok"}`。`PORT=abc` は ERROR ログ + 終了コード 1。UID 65532（nonroot）で動作。SIGTERM で `server shutting down`→`server stopped`、終了コード 0。ログは 1 行 1 JSON（`severity`/`message`/`time`）。残り: `CI / api` の緑。
 
 ## 意思決定ログ
 - Go 1.27.0 は `GOTOOLCHAIN=auto` で取得できることを確認したので `go 1.27.0` を採用。
