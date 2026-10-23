@@ -28,6 +28,10 @@ jobs:
           node-version-file: "frontend/.nvmrc"
       - if: steps.code.outputs.present == 'true'
         run: corepack enable && pnpm install --frozen-lockfile
+      # 生成パイプライン（scripts/generate.sh）が入るまではスキップ
+      - if: steps.code.outputs.present == 'true' && hashFiles('scripts/generate.sh') != ''
+        name: generated code is up to date
+        run: bash ../scripts/generate.sh fe && git diff --exit-code
       - if: steps.code.outputs.present == 'true'
         run: pnpm typecheck && pnpm lint
       - if: steps.code.outputs.present == 'true'
