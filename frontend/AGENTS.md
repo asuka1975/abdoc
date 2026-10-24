@@ -15,7 +15,10 @@
 
 ## 構成と境界
 - フレームワーク: Astro 7（`output: "static"`）/ TypeScript strict（`astro/tsconfigs/strict`）/ Node 24 / pnpm 10（`packageManager` で固定）
-- `src/pages/` ルーティング（現状 `index.astro` のみ）。
+- `src/pages/` ルーティング（`index.astro`、記事 `posts/[slug].astro`）。
+- A/B 記事: `src/content/posts/<slug>/{a,b}.md` → `/posts/<slug>/`。コレクションは `src/content.config.ts`（`postsA` / `postsB`、スキーマは `src/lib/post-schema.ts`）。比率は `a.md` の `ratio`（0〜1、省略時 0.5）だけに書く（`b.md` に書くとビルドエラー）。
+  - 両版を `src/components/ABPost.astro` が `hidden` で出力し、クライアントの `src/lib/variant.ts` が `localStorage` の `abdoc:variant:<slug>` で記事ごとに割り当てを固定する。zod はクライアントに持ち込まない（`variant.ts` から `post-schema.ts` を import しない）。
+  - Vitest からは `getCollection` が空になる。ページは Container API でなく `ABPost.astro` + `.md` の直接 import でテストする（`tests/post-page.test.ts`）。
 - `src/env.d.ts` 公開環境変数の型。API のベース URL は `import.meta.env.PUBLIC_API_BASE_URL` でのみ参照する。
 - `tests/` Vitest。`.astro` は Astro Container API（`astro/container`）でレンダリングして検証する。
 - `e2e/` Playwright（chromium のみ）。
