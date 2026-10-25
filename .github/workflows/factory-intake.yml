@@ -45,7 +45,9 @@ jobs:
       cancel-in-progress: true
     env:
       ISSUE_NUMBER: ${{ github.event.issue.number }}
-      GH_TOKEN: ${{ secrets.FACTORY_GITHUB_TOKEN || github.token }}
+      # 仕様コメントは github.token（github-actions[bot]）で投稿する。factory / chat の Apply spec update が
+      # 同じトークンで書き換えるため。intake のラベル・コメントで起動する後続ワークフローは無い（build は人間の factory:ready で起動）
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
         with:
