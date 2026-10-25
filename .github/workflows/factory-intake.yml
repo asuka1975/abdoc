@@ -66,6 +66,8 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # Issue 作成者は write 権限を持たないことがあるため必要（intake は読み取り専用なので許容）
           allowed_non_write_users: "*"
+          # factory / chat が scripts/factory/create-issue.sh で作った Issue（作成者 claude[bot]）も受け付ける
+          allowed_bots: "claude[bot]"
           github_token: ${{ secrets.GITHUB_TOKEN }}
           prompt: |
             REPO: ${{ github.repository }}

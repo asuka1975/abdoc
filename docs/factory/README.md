@@ -39,6 +39,8 @@ scripts/factory/
   detect-area.sh       PR の変更ファイルから領域を判定（chat が使う）
   apply-intake.sh      intake の JSON を Issue に反映
   apply-spec-update.sh chat が書いた仕様の改訂版を仕様コメントに反映
+  create-issue.sh      chat が Issue を作る（factory:triage + type:* を付ける）
+  close-issue.sh       chat が置き換えた Issue を閉じる（置き換え先を確かめてリンクをコメント）
   finalize-build.sh    build 後の後始末（PR 保証・ラベル遷移）
 docs/factory/STATE_MACHINE.md, SETUP.md, review-{fe,be}.md   # プロトコル仕様・導入手順・領域別レビュー観点
 docs/exec-plans/{active,completed}/               # 1 Issue 1 計画ファイル（セッションをまたぐ記憶）
