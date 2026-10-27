@@ -13,8 +13,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/asuka1975/abdoc/backend/internal/app"
 	"github.com/asuka1975/abdoc/backend/internal/config"
 	"github.com/asuka1975/abdoc/backend/internal/logging"
+	"github.com/asuka1975/abdoc/backend/internal/store/memory"
 	transport "github.com/asuka1975/abdoc/backend/internal/transport/http"
 )
 
@@ -42,7 +44,7 @@ func run(ctx context.Context, logOut io.Writer) error {
 
 	srv := &http.Server{
 		Addr:              cfg.Addr(),
-		Handler:           transport.NewRouter(),
+		Handler:           transport.NewRouter(app.NewService(memory.NewReactionStore(), &memory.EventWriter{}, logger), logger),
 		ReadHeaderTimeout: 10 * time.Second,
 		ErrorLog:          slog.NewLogLogger(logger.Handler(), slog.LevelError),
 	}
