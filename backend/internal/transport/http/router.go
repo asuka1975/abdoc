@@ -12,7 +12,9 @@ import (
 )
 
 // server は contracts/openapi.yaml から生成した api.ServerInterface を実装する。
-type server struct{}
+type server struct {
+	api.Unimplemented
+}
 
 var _ api.ServerInterface = server{}
 
