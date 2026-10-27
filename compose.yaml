@@ -1,0 +1,49 @@
+# ローカルで FE → プロキシ（Caddy）→ backend → エミュレータの経路を通すための Compose。
+# 手順は README.md の「ローカルで動かす（Docker Compose）」を参照。本番では使わない。
+name: abdoc
+
+services:
+  firestore:
+    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+    command: gcloud emulators firestore start --project=abdoc-local --host-port=0.0.0.0:8081
+    ports:
+      - "8081:8081"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8081/"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  bigquery:
+    image: ghcr.io/goccy/bigquery-emulator:latest
+    # イメージは linux/amd64 のみ。Apple Silicon ではエミュレーションで動く。
+    platform: linux/amd64
+    command: --project=abdoc-local --port=9050 --grpc-port=9060 --data-from-yaml=/data/data.yaml
+    volumes:
+      - ./compose/bigquery/data.yaml:/data/data.yaml:ro
+    ports:
+      - "9050:9050"
+
+  backend:
+    build: ./backend
+    environment:
+      PORT: "8080"
+      GOOGLE_CLOUD_PROJECT: abdoc-local
+      BIGQUERY_DATASET: abdoc
+      FIRESTORE_EMULATOR_HOST: firestore:8081
+      BIGQUERY_EMULATOR_HOST: bigquery:9050
+    depends_on:
+      firestore:
+        condition: service_healthy
+      bigquery:
+        condition: service_started
+
+  proxy:
+    image: caddy:2
+    volumes:
+      - ./compose/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./frontend/dist:/srv:ro
+    ports:
+      - "8080:8080"
+    depends_on:
+      - backend
