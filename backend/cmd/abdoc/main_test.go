@@ -45,6 +45,7 @@ func freePort(t *testing.T) string {
 func TestRunServesHealthzAndLogsJSON(t *testing.T) {
 	port := freePort(t)
 	t.Setenv("PORT", port)
+	t.Setenv("GOOGLE_CLOUD_PROJECT", "") // インメモリのストアで起動する
 
 	var logs syncBuffer
 	ctx, cancel := context.WithCancel(context.Background())
@@ -93,6 +94,20 @@ func TestRunServesHealthzAndLogsJSON(t *testing.T) {
 		if !json.Valid([]byte(line)) {
 			t.Errorf("log line is not JSON: %q", line)
 		}
+	}
+}
+
+func TestRunFailsWithoutDataset(t *testing.T) {
+	t.Setenv("PORT", freePort(t))
+	t.Setenv("GOOGLE_CLOUD_PROJECT", "abdoc-local")
+	t.Setenv("BIGQUERY_DATASET", "")
+
+	var logs syncBuffer
+	if err := run(context.Background(), &logs); err == nil {
+		t.Fatal("run() error = nil, want error")
+	}
+	if !strings.Contains(logs.String(), "BIGQUERY_DATASET") {
+		t.Errorf("logs = %q, want BIGQUERY_DATASET error", logs.String())
 	}
 }
 
