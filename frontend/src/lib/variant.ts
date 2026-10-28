@@ -1,7 +1,7 @@
 /**
  * A/B 記事の割り当て（クライアント側）。
- * 訪問者 × 記事ごとに A/B を抽選し、`localStorage` の `abdoc:variant:<slug>` に保存して固定する。
- * ブラウザ API には直接依存せず、ストレージと乱数を注入できるようにしてある（単体テストのため）。
+ * 訪問者 ID と記事の slug から決定論的に版を決める: `FNV-1a32("<visitorId>:<slug>") / 2^32 < ratio` なら A。
+ * 同じ訪問者 ID なら何度割り当てても同じ版になるので、版そのものは保存しない（訪問者 ID は `visitor.ts`）。
  */
 
 export type Variant = "A" | "B";
@@ -9,22 +9,17 @@ export type Variant = "A" | "B";
 /** `a.md` の frontmatter で `ratio` を省略したときの A の確率 */
 export const DEFAULT_RATIO = 0.5;
 
-/** `localStorage` のうち、ここで使う部分だけ */
-export interface StorageLike {
-  getItem(key: string): string | null;
-  setItem(key: string, value: string): void;
+/** 32 bit FNV-1a。文字列は UTF-8 のバイト列としてハッシュする */
+export function fnv1a32(text: string): number {
+  let hash = 0x811c9dc5;
+  for (const byte of new TextEncoder().encode(text)) {
+    hash ^= byte;
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return hash >>> 0;
 }
 
-export interface VariantStore {
-  get(slug: string): Variant | null;
-  set(slug: string, variant: Variant): void;
-}
-
-export function storageKey(slug: string): string {
-  return `abdoc:variant:${slug}`;
-}
-
-/** 乱数 `random`（0 ≤ r < 1）が `ratio` 未満なら A、それ以外は B */
+/** 0 ≤ r < 1 の値 `random` が `ratio` 未満なら A、それ以外は B */
 export function pickVariant(ratio: number, random: number): Variant {
   return random < ratio ? "A" : "B";
 }
@@ -36,55 +31,9 @@ export function parseRatio(value: string | undefined): number {
   return Number.isFinite(ratio) && ratio >= 0 && ratio <= 1 ? ratio : DEFAULT_RATIO;
 }
 
-function parseVariant(value: string | null): Variant | null {
-  return value === "A" || value === "B" ? value : null;
-}
-
-/**
- * 割り当ての保存先を作る。`localStorage` が使えない（取得や読み書きで例外になる・存在しない）ときは、
- * そのページを表示している間だけ有効なメモリ上の割り当てで動く。
- */
-export function createVariantStore(getStorage: () => StorageLike | undefined): VariantStore {
-  const memory = new Map<string, Variant>();
-  let storage: StorageLike | undefined;
-  try {
-    storage = getStorage();
-  } catch {
-    storage = undefined;
-  }
-
-  return {
-    get(slug) {
-      const remembered = memory.get(slug);
-      if (remembered) return remembered;
-      try {
-        return parseVariant(storage?.getItem(storageKey(slug)) ?? null);
-      } catch {
-        return null;
-      }
-    },
-    set(slug, variant) {
-      memory.set(slug, variant);
-      try {
-        storage?.setItem(storageKey(slug), variant);
-      } catch {
-        // 保存できなくてもメモリ上の割り当てで表示を続ける
-      }
-    },
-  };
-}
-
-/** 保存済みならその版を、未保存（または不正値）なら `ratio` で抽選して保存した版を返す */
-export function assignVariant(
-  slug: string,
-  ratio: number,
-  deps: { store: VariantStore; random: () => number },
-): Variant {
-  const saved = deps.store.get(slug);
-  if (saved) return saved;
-  const variant = pickVariant(ratio, deps.random());
-  deps.store.set(slug, variant);
-  return variant;
+/** 訪問者 ID と slug から版を決める（同じ組なら常に同じ版） */
+export function assignVariant(visitorId: string, slug: string, ratio: number): Variant {
+  return pickVariant(ratio, fnv1a32(`${visitorId}:${slug}`) / 2 ** 32);
 }
 
 /** 割り当てた版だけを表示し、もう片方を隠す */

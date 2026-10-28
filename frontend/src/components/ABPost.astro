@@ -40,16 +40,16 @@ const { slug, ratio, titleA, titleB } = Astro.props;
       </article>
     </main>
     <script>
-      import { applyVariant, assignVariant, createVariantStore, parseRatio } from "../lib/variant";
+      import { applyVariant, assignVariant, parseRatio } from "../lib/variant";
 
-      const store = createVariantStore(() => window.localStorage);
+      const visitorId = crypto.randomUUID();
       for (const root of document.querySelectorAll<HTMLElement>("[data-ab-post]")) {
         const slug = root.dataset.slug;
         const a = root.querySelector<HTMLElement>('[data-variant="A"]');
         const b = root.querySelector<HTMLElement>('[data-variant="B"]');
         if (!slug || !a || !b) continue;
 
-        const variant = assignVariant(slug, parseRatio(root.dataset.ratio), { store, random: Math.random });
+        const variant = assignVariant(visitorId, slug, parseRatio(root.dataset.ratio));
         applyVariant({ A: a, B: b }, variant);
         const title = (variant === "A" ? a : b).dataset.title;
         if (title) document.title = title;
