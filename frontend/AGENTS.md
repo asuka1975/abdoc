@@ -15,9 +15,11 @@
 
 ## 構成と境界
 - フレームワーク: Astro 7（`output: "static"`）/ TypeScript strict（`astro/tsconfigs/strict`）/ Node 24 / pnpm 10（`packageManager` で固定）
-- `src/pages/` ルーティング（`index.astro`、記事 `posts/[slug].astro`）。
+- `src/pages/` ルーティング（`index.astro`、記事 `posts/[slug].astro`、`privacy.astro`）。全ページ `src/layouts/BaseLayout.astro`（フッター + `ConsentBanner.astro`）に載せる。
 - A/B 記事: `src/content/posts/<slug>/{a,b}.md` → `/posts/<slug>/`。コレクションは `src/content.config.ts`（`postsA` / `postsB`、スキーマは `src/lib/post-schema.ts`）。比率は `a.md` の `ratio`（0〜1、省略時 0.5）だけに書く（`b.md` に書くとビルドエラー）。
-  - 両版を `src/components/ABPost.astro` が `hidden` で出力し、クライアントの `src/lib/variant.ts` が `localStorage` の `abdoc:variant:<slug>` で記事ごとに割り当てを固定する。zod はクライアントに持ち込まない（`variant.ts` から `post-schema.ts` を import しない）。
+  - 両版を `src/components/ABPost.astro` が `hidden` で出力し、クライアントの `src/lib/variant.ts` が `FNV-1a32("<visitorId>:<slug>") / 2^32 < ratio` なら A と決定論的に割り当てる（版は保存しない）。zod はクライアントに持ち込まない（`variant.ts` から `post-schema.ts` を import しない）。
+  - 訪問者 ID は `src/lib/visitor.ts`。同意（`localStorage` の `abdoc:consent`）済みなら Cookie `abdoc_vid`、未同意・拒否ならページ内だけの一時 ID（同意時にそれを保存）。記録・送信には `getVisitorId()`（同意済みでなければ `null`）を使い、未同意の訪問者からは何も記録しない。
+  - e2e は割り当てを `Math.random` でなく、同意済み + `abdoc_vid` の Cookie（`e2e/posts.spec.ts` の `grantedVisitor`）で固定する。
   - Vitest からは `getCollection` が空になる。ページは Container API でなく `ABPost.astro` + `.md` の直接 import でテストする（`tests/post-page.test.ts`）。
 - `src/env.d.ts` 公開環境変数の型。API のベース URL は `import.meta.env.PUBLIC_API_BASE_URL` でのみ参照する。
 - `tests/` Vitest。`.astro` は Astro Container API（`astro/container`）でレンダリングして検証する。
