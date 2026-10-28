@@ -1,0 +1,75 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { VISITOR_COOKIE } from "../lib/visitor";
+
+const title = "プライバシーポリシー";
+---
+
+<BaseLayout title={`${title} | ABDOC`}>
+  <main>
+    <h1>{title}</h1>
+    <p>
+      ABDOC（運営者: TODO）は、記事の改善のために以下の情報を取得します。取得は Cookie
+      の利用に同意いただいた場合に限ります。同意しない（拒否する）場合も記事は読めます。
+    </p>
+
+    <h2>Cookie</h2>
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">名前</th>
+          <th scope="col">目的</th>
+          <th scope="col">期限</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>{VISITOR_COOKIE}</code></td>
+          <td>訪問者 ID（ランダムな値）を保存し、表示する記事の版（A / B）の決定と、以下の項目の記録に使います</td>
+          <td>1 年</td>
+        </tr>
+      </tbody>
+    </table>
+    <p>
+      Cookie の期限が切れると新しい訪問者 ID が作られます。その場合、表示される記事の版と、それまでのリアクションはリセットされます。
+    </p>
+    <p>
+      同意の選択はブラウザの <code>localStorage</code>（<code>abdoc:consent</code>）に保存します。
+      選択はページ下部の「Cookie の設定」からいつでも変更できます。拒否に変更すると <code>{VISITOR_COOKIE}</code> を削除します。
+    </p>
+
+    <h2>取得する項目</h2>
+    <ul>
+      <li>訪問者 ID</li>
+      <li>表示した記事の版（A / B）</li>
+      <li>リアクション（いいね・バッド）</li>
+      <li>スクロール深さ</li>
+      <li>滞在時間</li>
+    </ul>
+    <p>未同意・拒否の訪問者からは、これらの項目を記録しません。</p>
+
+    <h2>保存先と保存期間</h2>
+    <p>取得した情報は Google Cloud に保存します。生ログの保存期間は 1 年です。</p>
+
+    <h2>お問い合わせ</h2>
+    <p>TODO（問い合わせ先）</p>
+  </main>
+</BaseLayout>
+
+<style>
+  main {
+    max-width: 40rem;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+    font-family: system-ui, sans-serif;
+  }
+  table {
+    border-collapse: collapse;
+  }
+  th,
+  td {
+    padding: 0.25rem 0.5rem;
+    border: 1px solid #ccc;
+    text-align: left;
+  }
+</style>
