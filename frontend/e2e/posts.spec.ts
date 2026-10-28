@@ -1,49 +1,59 @@
-import { expect, type Page, test } from "@playwright/test";
+import { type BrowserContext, expect, type Page, test } from "@playwright/test";
+import { assignVariant, type Variant } from "../src/lib/variant";
 
-/** ページのスクリプトより先に `Math.random` を固定する */
-async function fixRandom(page: Page, value: number) {
-  await page.addInitScript((r) => {
-    Math.random = () => r;
-  }, value);
+const RATIO = { welcome: 0.5, "getting-started": 0.7 } as const;
+type Slug = keyof typeof RATIO;
+
+/** `slug` で `variant` が割り当てられる訪問者 ID を、決まった列から探す */
+function idFor(slug: Slug, variant: Variant, skip = 0): string {
+  let found = 0;
+  for (let i = 0; i < 10_000; i++) {
+    const id = `00000000-0000-4000-8000-${i.toString(16).padStart(12, "0")}`;
+    if (assignVariant(id, slug, RATIO[slug]) === variant && found++ === skip) return id;
+  }
+  throw new Error(`${slug} で ${variant} になる ID が見つからない`);
 }
 
-function variant(page: Page, name: "A" | "B") {
+/** 同意済みで、訪問者 ID `id` の Cookie を持つ訪問者にする */
+async function grantedVisitor(context: BrowserContext, id: string) {
+  await context.addInitScript(() => localStorage.setItem("abdoc:consent", "granted"));
+  await context.addCookies([
+    { name: "abdoc_vid", value: id, url: "http://localhost:4321", secure: true, sameSite: "Lax" },
+  ]);
+}
+
+function variant(page: Page, name: Variant) {
   return page.locator(`[data-variant="${name}"]`);
 }
 
-async function stored(page: Page, slug: string) {
-  return page.evaluate((key) => window.localStorage.getItem(key), `abdoc:variant:${slug}`);
+async function variantKeys(page: Page) {
+  return page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith("abdoc:variant:")));
 }
 
-test("AC1: 未保存で抽選が A 側なら A だけが見え、A が保存される", async ({ page }) => {
-  await fixRandom(page, 0.1);
+test("AC1: 訪問者 ID が A に割り当たる組なら A だけが見え、版は localStorage に保存しない", async ({ page, context }) => {
+  await grantedVisitor(context, idFor("welcome", "A"));
   await page.goto("/posts/welcome/");
 
   await expect(variant(page, "A")).toBeVisible();
   await expect(variant(page, "B")).toBeHidden();
   await expect(page.getByRole("heading", { level: 1, name: "ABDOC へようこそ" })).toBeVisible();
   await expect(page).toHaveTitle("ABDOC へようこそ");
-  expect(await stored(page, "welcome")).toBe("A");
+  expect(await variantKeys(page)).toEqual([]);
 });
 
-test("AC2: 別の訪問者で抽選が B 側なら B だけが見え、B が保存される", async ({ page }) => {
-  await fixRandom(page, 0.9);
+test("AC1: 別の訪問者 ID で B に割り当たる組なら B だけが見える", async ({ page, context }) => {
+  await grantedVisitor(context, idFor("welcome", "B"));
   await page.goto("/posts/welcome/");
 
   await expect(variant(page, "B")).toBeVisible();
   await expect(variant(page, "A")).toBeHidden();
   await expect(page.getByRole("heading", { level: 1, name: "ABDOC とは" })).toBeVisible();
   await expect(page).toHaveTitle("ABDOC とは");
-  expect(await stored(page, "welcome")).toBe("B");
+  expect(await variantKeys(page)).toEqual([]);
 });
 
-test("AC3: 保存済みの版はリロード・再訪で乱数に関係なく同じ", async ({ page }) => {
-  await page.addInitScript(() => {
-    // 1 回目は A 側、以降は B 側に出る乱数
-    const first = !sessionStorage.getItem("abdoc-e2e-visited");
-    sessionStorage.setItem("abdoc-e2e-visited", "1");
-    Math.random = () => (first ? 0.1 : 0.9);
-  });
+test("AC1: 同じ訪問者 ID ならリロード・再訪でも同じ版", async ({ page, context }) => {
+  await grantedVisitor(context, idFor("welcome", "A"));
   await page.goto("/posts/welcome/");
   await expect(variant(page, "A")).toBeVisible();
 
@@ -55,45 +65,46 @@ test("AC3: 保存済みの版はリロード・再訪で乱数に関係なく同
   await page.goto("/posts/welcome/");
   await expect(variant(page, "A")).toBeVisible();
   await expect(variant(page, "B")).toBeHidden();
-  expect(await stored(page, "welcome")).toBe("A");
 });
 
-test("AC3: 保存済みの B は ratio 0.7 の記事で A 側の乱数が出ても B のまま", async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem("abdoc:variant:getting-started", "B"));
-  await fixRandom(page, 0);
+test("AC7: 古い abdoc:variant:<slug> が残っていても無視し、訪問者 ID から決まる版を出す", async ({ page, context }) => {
+  await context.addInitScript(() => localStorage.setItem("abdoc:variant:getting-started", "A"));
+  await grantedVisitor(context, idFor("getting-started", "B"));
   await page.goto("/posts/getting-started/");
 
   await expect(variant(page, "B")).toBeVisible();
   await expect(variant(page, "A")).toBeHidden();
 });
 
-test("AC4: 記事 X の割り当ては記事 Y に影響せず、Y は独立に抽選・保存される", async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem("abdoc:variant:welcome", "A"));
-  await fixRandom(page, 0.9);
+test("AC1: 記事ごとに独立して決まる（同じ ID でも記事 X と Y で版が違いうる）", async ({ page, context }) => {
+  // welcome では A、getting-started では B になる ID
+  let id = "";
+  for (let skip = 0; !id; skip++) {
+    const candidate = idFor("welcome", "A", skip);
+    if (assignVariant(candidate, "getting-started", RATIO["getting-started"]) === "B") id = candidate;
+  }
+  await grantedVisitor(context, id);
 
   await page.goto("/posts/getting-started/");
   await expect(variant(page, "B")).toBeVisible();
   await expect(variant(page, "A")).toBeHidden();
-  expect(await stored(page, "getting-started")).toBe("B");
-  expect(await stored(page, "welcome")).toBe("A");
+  await page.goto("/posts/welcome/");
+  await expect(variant(page, "A")).toBeVisible();
+  await expect(variant(page, "B")).toBeHidden();
 });
 
-test("AC5: ratio 0.7 の記事は r = 0.69 で A、r = 0.7 で B", async ({ browser }) => {
-  for (const [r, expected] of [
-    [0.69, "A"],
-    [0.7, "B"],
-  ] as const) {
+test("AC1: ratio 0.7 の記事は FNV-1a32 / 2^32 < 0.7 なら A、それ以外は B", async ({ browser }) => {
+  for (const expected of ["A", "B"] as const) {
     const context = await browser.newContext();
+    await grantedVisitor(context, idFor("getting-started", expected));
     const page = await context.newPage();
-    await fixRandom(page, r);
     await page.goto("/posts/getting-started/");
     await expect(variant(page, expected)).toBeVisible();
-    expect(await stored(page, "getting-started")).toBe(expected);
     await context.close();
   }
 });
 
-test("AC7: 記事ページの表示・操作でバックエンド（/api/**）へのリクエストが発生しない", async ({ page }) => {
+test("記事ページの表示・操作でバックエンド（/api/**）へのリクエストが発生しない", async ({ page }) => {
   const apiRequests: string[] = [];
   page.on("request", (request) => {
     if (new URL(request.url()).pathname.startsWith("/api/")) apiRequests.push(request.url());
@@ -101,6 +112,7 @@ test("AC7: 記事ページの表示・操作でバックエンド（/api/**）�
 
   await page.goto("/posts/welcome/");
   await expect(page.locator("[data-variant]:visible")).toHaveCount(1);
+  await page.getByRole("button", { name: "同意する" }).click();
   await page.reload();
   await page.goto("/posts/getting-started/");
   await expect(page.locator("[data-variant]:visible")).toHaveCount(1);
