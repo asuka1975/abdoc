@@ -29,7 +29,7 @@ test("AC4: 取得項目・保存先・保存期間・運営者・問い合わせ
   expect(html).toContain("Google Cloud");
   expect(html).toContain("生ログの保存期間は 1 年");
   expect(html).toMatch(
-    /お問い合わせ<\/h2>\s*<p[^>]*>https:\/\/github\.com\/asuka1975\/abdoc\/discussions/,
+    /お問い合わせ<\/h2>\s*<p[^>]*>\s*<a[^>]*href="https:\/\/github\.com\/asuka1975\/abdoc\/discussions"[^>]*>https:\/\/github\.com\/asuka1975\/abdoc\/discussions<\/a>/,
   );
   expect(html).toContain("運営者: asuka1975");
   expect(html).not.toContain("TODO");

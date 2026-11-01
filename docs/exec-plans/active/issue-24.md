@@ -38,6 +38,7 @@
 - 2026-10-28 ステップ5 完了（ca789ad）。
 - 2026-10-28 ステップ6 完了（952e2c2）。typecheck / lint / test（60 件）/ build / e2e（17 件）すべて緑。
 - 2026-11-01 CI 失敗（run 41313474180、`privacy-page.test.ts`）→ 人間が defd66f で運営者・問い合わせ先の `TODO` を埋めたのに、テストが `TODO` を期待していた → テストを確定値（`運営者: asuka1975`・Discussions の URL・`TODO` が残っていないこと）を確かめる形に直した。
+- 2026-11-01 人間の依頼で `/privacy/` の問い合わせ先 URL を `<a href>` のリンクにし、`privacy-page.test.ts` でリンクになっていることを確認するようにした。typecheck / lint / test（60 件）/ build / e2e（17 件）すべて緑。
 
 ## 意思決定ログ
 - 同意から拒否に選び直したら `abdoc_vid` を `Max-Age=0` で消す（「拒否時は Cookie を書かない」に合わせた）。表示中の版は変えない。
