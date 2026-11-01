@@ -21,13 +21,16 @@ test("AC4: Cookie の名前・目的・期限と、期限切れで版とリア�
   expect(html).toMatch(/期限が切れると新しい訪問者 ID[\s\S]*版[\s\S]*リアクションはリセット/);
 });
 
-test("AC4: 取得項目・保存先・保存期間・問い合わせ先（未定は TODO）", async () => {
+test("AC4: 取得項目・保存先・保存期間・運営者・問い合わせ先", async () => {
   const html = await render();
   for (const item of ["訪問者 ID", "版", "リアクション", "スクロール深さ", "滞在時間"]) {
     expect(html).toContain(item);
   }
   expect(html).toContain("Google Cloud");
   expect(html).toContain("生ログの保存期間は 1 年");
-  expect(html).toMatch(/お問い合わせ<\/h2>[\s\S]*TODO/);
-  expect(html).toMatch(/運営者: TODO/);
+  expect(html).toMatch(
+    /お問い合わせ<\/h2>\s*<p[^>]*>https:\/\/github\.com\/asuka1975\/abdoc\/discussions/,
+  );
+  expect(html).toContain("運営者: asuka1975");
+  expect(html).not.toContain("TODO");
 });

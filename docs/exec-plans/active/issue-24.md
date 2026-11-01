@@ -37,6 +37,7 @@
 - 2026-10-28 ステップ4 完了（9c9382a）。`e2e/posts.spec.ts` の書き換えもここ。
 - 2026-10-28 ステップ5 完了（ca789ad）。
 - 2026-10-28 ステップ6 完了（952e2c2）。typecheck / lint / test（60 件）/ build / e2e（17 件）すべて緑。
+- 2026-11-01 CI 失敗（run 41313474180、`privacy-page.test.ts`）→ 人間が defd66f で運営者・問い合わせ先の `TODO` を埋めたのに、テストが `TODO` を期待していた → テストを確定値（`運営者: asuka1975`・Discussions の URL・`TODO` が残っていないこと）を確かめる形に直した。
 
 ## 意思決定ログ
 - 同意から拒否に選び直したら `abdoc_vid` を `Max-Age=0` で消す（「拒否時は Cookie を書かない」に合わせた）。表示中の版は変えない。
@@ -47,4 +48,4 @@
 - 既存テストの書き換え: `variant.test.ts` の `storageKey` / `createVariantStore` / 乱数を注入する `assignVariant` のテストは、FNV-1a32 と決定論的な `assignVariant` のテストに置き換えた。`localStorage` が例外を投げるケースは `visitor.test.ts` に移した。`posts.spec.ts` は `Math.random` の固定を「同意済み + `abdoc_vid` Cookie」の固定に置き換えた。
 
 ## 人間への質問
-- なし（`/privacy/` の運営者名・問い合わせ先の `TODO` は D3 のとおり PR で埋める）
+- なし（`/privacy/` の運営者名・問い合わせ先は defd66f で人間が埋めた）
