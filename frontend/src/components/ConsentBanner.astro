@@ -1,0 +1,72 @@
+---
+/**
+ * Cookie の同意バナー。まだ選んでいない訪問者にだけ出す（選択は `src/lib/visitor.ts` が `abdoc:consent` に保存する）。
+ * `[data-consent-open]` のボタン（フッター）から再表示して選び直せる。JS 無効時は出さない（Cookie も書かない）。
+ */
+---
+
+<section class="consent" data-consent-banner aria-labelledby="consent-title" hidden>
+  <h2 id="consent-title">Cookie の利用について</h2>
+  <p>
+    記事の改善のため、同意いただいた場合に限り訪問者 ID を Cookie（<code>abdoc_vid</code>）に保存し、
+    表示した版・リアクション・スクロール深さ・滞在時間を記録します。拒否しても記事は読めます。
+    詳しくは<a href="/privacy/">プライバシーポリシー</a>をご覧ください。
+  </p>
+  <div class="actions">
+    <button type="button" data-consent-choice="granted">同意する</button>
+    <button type="button" data-consent-choice="denied">拒否する</button>
+  </div>
+</section>
+
+<script>
+  import { visitor } from "../lib/visitor";
+
+  const banner = document.querySelector<HTMLElement>("[data-consent-banner]");
+  if (banner) {
+    const v = visitor();
+    banner.hidden = v.getConsent() !== null;
+
+    for (const button of banner.querySelectorAll<HTMLButtonElement>("[data-consent-choice]")) {
+      const choice = button.dataset.consentChoice;
+      if (choice !== "granted" && choice !== "denied") continue;
+      button.addEventListener("click", () => {
+        v.setConsent(choice);
+        banner.hidden = true;
+      });
+    }
+
+    for (const open of document.querySelectorAll<HTMLButtonElement>("[data-consent-open]")) {
+      open.hidden = false;
+      open.addEventListener("click", () => {
+        banner.hidden = false;
+        banner.querySelector<HTMLButtonElement>("[data-consent-choice]")?.focus();
+      });
+    }
+  }
+</script>
+
+<style>
+  .consent {
+    position: fixed;
+    inset: auto 0 0 0;
+    padding: 1rem;
+    border-top: 1px solid #888;
+    background: #fff;
+    color: #111;
+    font-family: system-ui, sans-serif;
+  }
+  .consent[hidden] {
+    display: none;
+  }
+  h2 {
+    margin: 0 0 0.5rem;
+    font-size: 1rem;
+  }
+  p {
+    margin: 0 0 0.75rem;
+  }
+  .actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+</style>

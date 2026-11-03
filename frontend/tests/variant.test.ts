@@ -1,44 +1,23 @@
+import { randomUUID } from "node:crypto";
 import { describe, expect, test } from "vitest";
-import {
-  applyVariant,
-  assignVariant,
-  createVariantStore,
-  DEFAULT_RATIO,
-  parseRatio,
-  pickVariant,
-  storageKey,
-  type StorageLike,
-} from "../src/lib/variant";
+import { applyVariant, assignVariant, DEFAULT_RATIO, fnv1a32, parseRatio, pickVariant } from "../src/lib/variant";
 
-/** テスト用の `localStorage` 相当（Map ベース） */
-function memoryStorage(initial: Record<string, string> = {}): StorageLike & { data: Map<string, string> } {
-  const data = new Map(Object.entries(initial));
-  return {
-    data,
-    getItem: (key) => data.get(key) ?? null,
-    setItem: (key, value) => {
-      data.set(key, value);
-    },
-  };
-}
+describe("fnv1a32", () => {
+  test("既知のテストベクタ（32 bit FNV-1a）", () => {
+    expect(fnv1a32("")).toBe(0x811c9dc5);
+    expect(fnv1a32("a")).toBe(0xe40c292c);
+    expect(fnv1a32("foobar")).toBe(0xbf9cf968);
+  });
 
-/** 常に例外を投げる `localStorage`（Safari のプライベートモードやストレージ無効化を想定） */
-const throwingStorage: StorageLike = {
-  getItem: () => {
-    throw new Error("SecurityError");
-  },
-  setItem: () => {
-    throw new Error("QuotaExceededError");
-  },
-};
-
-describe("storageKey", () => {
-  test("記事ごとのキー abdoc:variant:<slug>", () => {
-    expect(storageKey("hello")).toBe("abdoc:variant:hello");
+  test("非 ASCII は UTF-8 のバイト列としてハッシュする", () => {
+    // "é" = 0xC3 0xA9
+    let hash = 0x811c9dc5;
+    for (const byte of [0xc3, 0xa9]) hash = Math.imul(hash ^ byte, 0x01000193) >>> 0;
+    expect(fnv1a32("é")).toBe(hash);
   });
 });
 
-describe("pickVariant（AC5）", () => {
+describe("pickVariant", () => {
   test("ratio 0.7: r < 0.7 なら A、r >= 0.7 なら B", () => {
     expect(pickVariant(0.7, 0)).toBe("A");
     expect(pickVariant(0.7, 0.6999999)).toBe("A");
@@ -56,7 +35,7 @@ describe("pickVariant（AC5）", () => {
   });
 });
 
-describe("parseRatio（AC5: 省略時 0.5）", () => {
+describe("parseRatio（省略時 0.5）", () => {
   test("省略・空・不正値は 0.5", () => {
     expect(DEFAULT_RATIO).toBe(0.5);
     expect(parseRatio(undefined)).toBe(0.5);
@@ -74,78 +53,37 @@ describe("parseRatio（AC5: 省略時 0.5）", () => {
 });
 
 describe("assignVariant", () => {
-  test("AC1: 未保存で抽選が A 側 → A を返し abdoc:variant:<slug> に A を保存", () => {
-    const storage = memoryStorage();
-    const store = createVariantStore(() => storage);
+  const id = "3f2b8c1e-5d4a-4e6b-9c7d-1a2b3c4d5e6f";
 
-    expect(assignVariant("hello", 0.5, { store, random: () => 0.1 })).toBe("A");
-    expect(storage.data.get("abdoc:variant:hello")).toBe("A");
+  test("AC1: 同じ訪問者 ID と slug の組なら何度割り当てても同じ版", () => {
+    for (const ratio of [0.3, 0.5, 0.7]) {
+      const first = assignVariant(id, "hello", ratio);
+      for (let i = 0; i < 100; i++) expect(assignVariant(id, "hello", ratio)).toBe(first);
+    }
   });
 
-  test("AC2: 未保存で抽選が B 側 → B を返し B を保存", () => {
-    const storage = memoryStorage();
-    const store = createVariantStore(() => storage);
-
-    expect(assignVariant("hello", 0.5, { store, random: () => 0.9 })).toBe("B");
-    expect(storage.data.get("abdoc:variant:hello")).toBe("B");
+  test("AC1: FNV-1a32(\"<visitorId>:<slug>\") / 2^32 < ratio なら A", () => {
+    const r = fnv1a32(`${id}:hello`) / 2 ** 32;
+    expect(assignVariant(id, "hello", r)).toBe("B");
+    expect(assignVariant(id, "hello", r + 1e-9)).toBe("A");
   });
 
-  test("AC3: 保存済みなら乱数・ratio に関係なく同じ版", () => {
-    const storageA = memoryStorage({ "abdoc:variant:hello": "A" });
-    const storeA = createVariantStore(() => storageA);
-    // ratio 0 は本来常に B だが、保存済みの A を優先する
-    expect(assignVariant("hello", 0, { store: storeA, random: () => 0.99 })).toBe("A");
-    expect(assignVariant("hello", 0.5, { store: storeA, random: () => 0.99 })).toBe("A");
-
-    const storageB = memoryStorage({ "abdoc:variant:hello": "B" });
-    const storeB = createVariantStore(() => storageB);
-    expect(assignVariant("hello", 1, { store: storeB, random: () => 0 })).toBe("B");
-    expect(storageB.data.get("abdoc:variant:hello")).toBe("B");
+  test("AC1: 記事が違えば訪問者 ID が同じでも独立に決まる（slug をハッシュに含める）", () => {
+    const r = (slug: string) => fnv1a32(`${id}:${slug}`) / 2 ** 32;
+    expect(r("x")).not.toBe(r("y"));
+    expect(assignVariant(id, "x", 0.5)).toBe(pickVariant(0.5, r("x")));
+    expect(assignVariant(id, "y", 0.5)).toBe(pickVariant(0.5, r("y")));
   });
 
-  test("AC3: 保存値が不正なら未保存とみなして抽選し直し、上書きする", () => {
-    const storage = memoryStorage({ "abdoc:variant:hello": "C" });
-    const store = createVariantStore(() => storage);
-
-    expect(assignVariant("hello", 0.5, { store, random: () => 0.9 })).toBe("B");
-    expect(storage.data.get("abdoc:variant:hello")).toBe("B");
-  });
-
-  test("AC4: 記事 X の保存値は記事 Y の抽選に影響せず、X の保存値も変わらない", () => {
-    const storage = memoryStorage({ "abdoc:variant:x": "A" });
-    const store = createVariantStore(() => storage);
-
-    expect(assignVariant("y", 0.5, { store, random: () => 0.9 })).toBe("B");
-    expect(storage.data.get("abdoc:variant:y")).toBe("B");
-    expect(storage.data.get("abdoc:variant:x")).toBe("A");
-  });
-
-  test("AC5: 抽選は記事の ratio を使う", () => {
-    const store = createVariantStore(() => memoryStorage());
-    expect(assignVariant("a", 0.7, { store, random: () => 0.69 })).toBe("A");
-    expect(assignVariant("b", 0.7, { store, random: () => 0.7 })).toBe("B");
-  });
-
-  test("AC9: localStorage が例外を投げても、エラーにならずメモリ上で割り当てを保つ", () => {
-    const store = createVariantStore(() => throwingStorage);
-
-    expect(assignVariant("hello", 0.5, { store, random: () => 0.1 })).toBe("A");
-    // 同じページ内での再割り当ては同じ版（メモリ上の割り当て）
-    expect(assignVariant("hello", 0.5, { store, random: () => 0.9 })).toBe("A");
-  });
-
-  test("AC9: localStorage の取得自体が例外・undefined でも動く", () => {
-    const throwingGetter = createVariantStore(() => {
-      throw new Error("SecurityError");
-    });
-    expect(assignVariant("hello", 0.5, { store: throwingGetter, random: () => 0.9 })).toBe("B");
-
-    const missing = createVariantStore(() => undefined);
-    expect(assignVariant("hello", 0.5, { store: missing, random: () => 0.1 })).toBe("A");
+  test.each([0, 0.5, 1])("AC1: ランダムな ID 1 万件で A の割合が ratio %s ±2%", (ratio) => {
+    const n = 10_000;
+    let a = 0;
+    for (let i = 0; i < n; i++) if (assignVariant(randomUUID(), "hello", ratio) === "A") a++;
+    expect(Math.abs(a / n - ratio)).toBeLessThanOrEqual(0.02);
   });
 });
 
-describe("applyVariant（AC1・AC2・AC9: 片方だけ表示）", () => {
+describe("applyVariant（片方だけ表示）", () => {
   test("A のとき A だけが可視", () => {
     const a = { hidden: true };
     const b = { hidden: true };

@@ -49,6 +49,13 @@ test("AC8: サンプル記事の ratio（0.7 / 省略）", () => {
   expect(welcomeA.frontmatter.ratio).toBeUndefined();
 });
 
+test("記事ページは共通 Layout に載り、フッターと同意バナーを持つ", async () => {
+  const html = await renderWelcome();
+  expect(html).toContain("<title>ABDOC へようこそ</title>");
+  expect(html).toMatch(/<footer[^>]*>[\s\S]*href="\/privacy\/"[\s\S]*<\/footer>/);
+  expect(html).toMatch(/data-consent-banner/);
+});
+
 test("JS 無効時は noscript で A を表示する", async () => {
   const html = await renderWelcome();
   expect(html).toMatch(/<noscript>[\s\S]*\[data-variant="A"\]\[hidden\][\s\S]*display:\s*block[\s\S]*<\/noscript>/);
