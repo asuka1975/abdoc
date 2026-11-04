@@ -60,3 +60,24 @@ test("JS 無効時は noscript で A を表示する", async () => {
   const html = await renderWelcome();
   expect(html).toMatch(/<noscript>[\s\S]*\[data-variant="A"\]\[hidden\][\s\S]*display:\s*block[\s\S]*<\/noscript>/);
 });
+
+test("#26 AC5/AC6: 評価ボタンは aria-pressed を持ち、初期は disabled で同意の案内文を出す（JS が動くまで hidden）", async () => {
+  const html = await renderWelcome();
+  const section = html.match(/<section[^>]*data-reaction[\s>][\s\S]*?<\/section>/)?.[0];
+  if (!section) throw new Error("評価ボタンの section が見つからない");
+
+  expect(section.slice(0, section.indexOf(">") + 1)).toMatch(/\shidden[\s>]/);
+  expect(section).toMatch(/aria-label="この記事の評価"/);
+  for (const name of ["like", "bad"]) {
+    const button = section.match(new RegExp(`<button[^>]*data-reaction-button="${name}"[^>]*>`))?.[0] ?? "";
+    expect(button).toMatch(/type="button"/);
+    expect(button).toMatch(/aria-pressed="false"/);
+    expect(button).toMatch(/\sdisabled[\s>]/);
+  }
+  expect(section).toMatch(/いいね <span[^>]*data-reaction-count="like"[^>]*aria-live="polite"/);
+  expect(section).toMatch(/バッド <span[^>]*data-reaction-count="bad"[^>]*aria-live="polite"/);
+  expect(section).toContain("Cookie に同意すると評価できます");
+  // 評価ボタンは記事の本体（main）の中に 1 つだけ
+  expect(html.match(/<section[^>]*data-reaction[\s>]/g)).toHaveLength(1);
+  expect(html).toMatch(/<main[^>]*>[\s\S]*data-reaction[\s\S]*<\/main>/);
+});

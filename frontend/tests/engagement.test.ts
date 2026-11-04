@@ -184,7 +184,7 @@ describe("AC5 / AC8: 同意と送信", () => {
 describe("postEngagement", () => {
   test("AC4: client.ts 経由で POST し、keepalive・X-Abdoc-Visitor-Id・本文を付ける", async () => {
     vi.useRealTimers();
-    const fetch = vi.fn(async (_request: Request) => new Response(null, { status: 204 }));
+    const fetch = vi.fn<(request: Request) => Promise<Response>>(async () => new Response(null, { status: 204 }));
     const client = createApiClient({ baseUrl: "http://api.test", fetch });
 
     await postEngagement(client, {
