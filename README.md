@@ -39,10 +39,8 @@ curl -s "localhost:8081/v1/projects/abdoc-local/databases/(default)/documents/po
 curl -s -X POST localhost:9050/bigquery/v2/projects/abdoc-local/queries -H 'Content-Type: application/json' \
   -d '{"query":"SELECT * FROM abdoc.engagement_events","useLegacySql":false}'
 
-# 5. 統合テスト（compose を起動したまま、backend/ で）
-(cd backend && FIRESTORE_EMULATOR_HOST=localhost:8081 BIGQUERY_EMULATOR_HOST=localhost:9050 \
-  GOOGLE_CLOUD_PROJECT=abdoc-local BIGQUERY_DATASET=abdoc ABDOC_PROXY_URL=http://localhost:8080 \
-  go test -tags=integration -count=1 ./...)
+# 5. 統合テスト（compose を起動したまま、リポジトリのルートで。環境変数は Makefile が渡す）
+make test-integration
 
 # 片付け（エミュレータのデータはコンテナと一緒に消える）
 docker compose down

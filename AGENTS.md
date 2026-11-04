@@ -41,7 +41,7 @@
 - 迷ったら推測せず「人間への質問」に書く。質問は番号付き・最大 5 個。
 
 ## よくある失敗と対策（learn エージェントが追記する）
-- …
+- 統合テスト（-tags=integration）は環境変数が要る。素の go test ではなく `make test-integration` で実行する。
 
 ## 読む順番
 1. この AGENTS.md → 2. 領域の AGENTS.md → 3. Issue の仕様コメント → 4. `docs/exec-plans/active/issue-<N>.md` → 5. 影響範囲のコードとテスト
