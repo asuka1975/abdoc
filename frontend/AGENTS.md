@@ -19,6 +19,9 @@
 - A/B 記事: `src/content/posts/<slug>/{a,b}.md` → `/posts/<slug>/`。コレクションは `src/content.config.ts`（`postsA` / `postsB`、スキーマは `src/lib/post-schema.ts`）。比率は `a.md` の `ratio`（0〜1、省略時 0.5）だけに書く（`b.md` に書くとビルドエラー）。
   - 両版を `src/components/ABPost.astro` が `hidden` で出力し、クライアントの `src/lib/variant.ts` が `FNV-1a32("<visitorId>:<slug>") / 2^32 < ratio` なら A と決定論的に割り当てる（版は保存しない）。zod はクライアントに持ち込まない（`variant.ts` から `post-schema.ts` を import しない）。
   - 訪問者 ID は `src/lib/visitor.ts`。同意（`localStorage` の `abdoc:consent`）済みなら Cookie `abdoc_vid`、未同意・拒否ならページ内だけの一時 ID（同意時にそれを保存）。記録・送信には `getVisitorId()`（同意済みでなければ `null`）を使い、未同意の訪問者からは何も記録しない。
+  - 同意の変更は `visitor().onConsentChange(listener)`（戻り値で解除）で受ける。再読み込みせずに表示・送信可否を切り替えるときに使う。
+  - 評価（いいね/バッド）は `src/lib/reaction.ts`、スクロール深さ・可視秒数は `src/lib/engagement.ts`。どちらも `ABPost.astro` が版を決めた後につなぎ、API を呼ぶ直前に `getVisitorId()` を読む（`null` なら呼ばない）。engagement は hidden/pagehide で 1 回だけ `keepalive` で送る（`sendBeacon` はヘッダーを付けられないので使わない）。
+  - e2e で離脱時の送信を見るときは、実際に離脱せずに `pagehide` をページ上で出す（Playwright は離脱中のページの keepalive リクエストを観測できない）。API は `page.context().route` でモックする（`e2e/reaction.spec.ts`）。
   - e2e は割り当てを `Math.random` でなく、同意済み + `abdoc_vid` の Cookie（`e2e/posts.spec.ts` の `grantedVisitor`）で固定する。
   - Vitest からは `getCollection` が空になる。ページは Container API でなく `ABPost.astro` + `.md` の直接 import でテストする（`tests/post-page.test.ts`）。
 - `src/env.d.ts` 公開環境変数の型。API のベース URL は `import.meta.env.PUBLIC_API_BASE_URL` でのみ参照する。

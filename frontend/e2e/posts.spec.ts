@@ -104,21 +104,34 @@ test("AC1: ratio 0.7 の記事は FNV-1a32 / 2^32 < 0.7 なら A、それ以外�
   }
 });
 
-test("記事ページの表示・操作でバックエンド（/api/**）へのリクエストが発生しない", async ({ page }) => {
+// #26 で、同意済みなら評価（GET/PUT reaction）と engagement を BE に送るようになった。
+// 未同意の間は一切送らないこと、同意後も表示中の記事の評価 API 以外へは送らないことを確かめる。
+test("記事ページの表示・操作で、未同意なら /api/** へのリクエストが発生せず、同意後も表示中の記事の評価 API だけを呼ぶ", async ({ page }) => {
   const apiRequests: string[] = [];
   page.on("request", (request) => {
-    if (new URL(request.url()).pathname.startsWith("/api/")) apiRequests.push(request.url());
+    const url = new URL(request.url());
+    if (url.pathname.startsWith("/api/")) apiRequests.push(`${request.method()} ${url.pathname}${url.search}`);
   });
 
   await page.goto("/posts/welcome/");
   await expect(page.locator("[data-variant]:visible")).toHaveCount(1);
+  const welcome = await page.locator("[data-variant]:visible").getAttribute("data-variant");
+  await page.waitForLoadState("networkidle");
+  expect(apiRequests).toEqual([]);
+
   await page.getByRole("button", { name: "同意する" }).click();
   await page.reload();
   await page.goto("/posts/getting-started/");
   await expect(page.locator("[data-variant]:visible")).toHaveCount(1);
+  const gettingStarted = await page.locator("[data-variant]:visible").getAttribute("data-variant");
   await page.waitForLoadState("networkidle");
 
-  expect(apiRequests).toEqual([]);
+  // 同意した時点で 1 回、再読み込みで 1 回、移動先で 1 回（離脱時の engagement は Playwright から観測できない）
+  expect(apiRequests).toEqual([
+    `GET /api/posts/welcome/reaction?variant=${welcome}`,
+    `GET /api/posts/welcome/reaction?variant=${welcome}`,
+    `GET /api/posts/getting-started/reaction?variant=${gettingStarted}`,
+  ]);
 });
 
 test.describe("JS 無効", () => {

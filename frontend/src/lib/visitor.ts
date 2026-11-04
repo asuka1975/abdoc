@@ -42,6 +42,11 @@ export interface Visitor {
   getAssignmentId(): string;
   /** 同意済みならその訪問者 ID、そうでなければ `null`（記録・送信はこちらを使う） */
   getVisitorId(): string | null;
+  /**
+   * `setConsent()` で同意の選択が保存されるたびに `listener` を呼ぶ（再読み込みせずに表示や送信可否を切り替えるため）。
+   * 戻り値を呼ぶと購読を解除する。
+   */
+  onConsentChange(listener: (consent: Consent) => void): () => void;
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -70,6 +75,8 @@ export function createVisitor(env: VisitorEnv): Visitor {
   }
   let memoryConsent: Consent | null = null;
   let temporaryId: string | undefined;
+  /** 購読ごとに 1 要素（同じ関数を 2 回購読しても、解除はそれぞれ独立） */
+  const listeners: { listener: (consent: Consent) => void }[] = [];
 
   function getConsent(): Consent | null {
     if (memoryConsent) return memoryConsent;
@@ -133,12 +140,27 @@ export function createVisitor(env: VisitorEnv): Visitor {
           // 消せなくても以後は読まない
         }
       }
+      for (const { listener } of [...listeners]) {
+        try {
+          listener(consent);
+        } catch {
+          // 1 つの購読者の失敗で、ほかの購読者やバナーの操作を止めない
+        }
+      }
     },
     getAssignmentId() {
       return getConsent() === "granted" ? grantedId() : temporary();
     },
     getVisitorId() {
       return getConsent() === "granted" ? grantedId() : null;
+    },
+    onConsentChange(listener) {
+      const entry = { listener };
+      listeners.push(entry);
+      return () => {
+        const index = listeners.indexOf(entry);
+        if (index >= 0) listeners.splice(index, 1);
+      };
     },
   };
 }

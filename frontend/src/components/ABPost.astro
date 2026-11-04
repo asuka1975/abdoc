@@ -34,15 +34,55 @@ const { slug, ratio, titleA, titleB } = Astro.props;
       <h1>{titleB}</h1>
       <slot name="b" />
     </article>
+    <!-- 評価ボタン。JS 無効時は送れないので出さない（スクリプトが hidden を外す） -->
+    <section class="reaction" data-reaction aria-label="この記事の評価" hidden>
+      <button type="button" data-reaction-button="like" aria-pressed="false" disabled>
+        いいね <span data-reaction-count="like" aria-live="polite">-</span>
+      </button>
+      <button type="button" data-reaction-button="bad" aria-pressed="false" disabled>
+        バッド <span data-reaction-count="bad" aria-live="polite">-</span>
+      </button>
+      <p data-reaction-notice>Cookie に同意すると評価できます</p>
+    </section>
   </main>
 </BaseLayout>
 
 <script>
+  import { createApiClient } from "../api/client";
+  import { trackEngagement } from "../lib/engagement";
+  import { createReactionController, createReactionView, type Variant } from "../lib/reaction";
   import { applyVariant, assignVariant, parseRatio } from "../lib/variant";
   import { visitor } from "../lib/visitor";
 
+  const v = visitor();
   // 同意済みなら Cookie の訪問者 ID、未同意・拒否ならこのページの間だけの一時 ID（同意すると同じ ID が保存される）
-  const visitorId = visitor().getAssignmentId();
+  const visitorId = v.getAssignmentId();
+  // 同意済みでなければ null。API を呼ぶ直前に毎回読む（未同意・拒否なら API を呼ばない）
+  const getVisitorId = () => v.getVisitorId();
+  const client = createApiClient();
+
+  function connectReaction(root: HTMLElement, slug: string, variant: Variant) {
+    const section = root.querySelector<HTMLElement>("[data-reaction]");
+    const like = section?.querySelector<HTMLButtonElement>('[data-reaction-button="like"]');
+    const bad = section?.querySelector<HTMLButtonElement>('[data-reaction-button="bad"]');
+    const likeCount = section?.querySelector<HTMLElement>('[data-reaction-count="like"]');
+    const badCount = section?.querySelector<HTMLElement>('[data-reaction-count="bad"]');
+    const notice = section?.querySelector<HTMLElement>("[data-reaction-notice]");
+    if (!section || !like || !bad || !likeCount || !badCount || !notice) return;
+
+    const controller = createReactionController({
+      client,
+      slug,
+      variant,
+      getVisitorId,
+      view: createReactionView({ buttons: { like, bad }, counts: { like: likeCount, bad: badCount }, notice }),
+    });
+    like.addEventListener("click", () => void controller.press("like"));
+    bad.addEventListener("click", () => void controller.press("bad"));
+    v.onConsentChange(() => void controller.consentChanged());
+    section.hidden = false;
+  }
+
   for (const root of document.querySelectorAll<HTMLElement>("[data-ab-post]")) {
     const slug = root.dataset.slug;
     const a = root.querySelector<HTMLElement>('[data-variant="A"]');
@@ -53,6 +93,10 @@ const { slug, ratio, titleA, titleB } = Astro.props;
     applyVariant({ A: a, B: b }, variant);
     const title = (variant === "A" ? a : b).dataset.title;
     if (title) document.title = title;
+
+    // 表示中の版が決まってから、評価の初期状態の取得と engagement の計測を始める
+    connectReaction(root, slug, variant);
+    trackEngagement({ client, slug, variant, getVisitorId });
   }
 </script>
 
@@ -62,5 +106,25 @@ const { slug, ratio, titleA, titleB } = Astro.props;
     margin: 0 auto;
     padding: 2rem 1rem;
     font-family: system-ui, sans-serif;
+  }
+  .reaction {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 2rem;
+  }
+  .reaction[hidden] {
+    display: none;
+  }
+  .reaction button[aria-pressed="true"] {
+    font-weight: bold;
+    outline: 2px solid currentColor;
+  }
+  .reaction p {
+    margin: 0;
+  }
+  .reaction p[hidden] {
+    display: none;
   }
 </style>
