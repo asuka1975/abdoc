@@ -32,6 +32,45 @@ func TestLoadPortFromEnv(t *testing.T) {
 	}
 }
 
+func TestLoadGCPSettings(t *testing.T) {
+	t.Setenv("PORT", "")
+	t.Setenv("GOOGLE_CLOUD_PROJECT", "abdoc-local")
+	t.Setenv("BIGQUERY_DATASET", "abdoc")
+	t.Setenv("BIGQUERY_EMULATOR_HOST", "bigquery:9050")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.Project != "abdoc-local" || cfg.BigQueryDataset != "abdoc" || cfg.BigQueryEmulatorHost != "bigquery:9050" || cfg.InMemory() {
+		t.Errorf("cfg = %+v", cfg)
+	}
+}
+
+func TestLoadInMemoryWithoutProject(t *testing.T) {
+	t.Setenv("PORT", "")
+	t.Setenv("GOOGLE_CLOUD_PROJECT", "")
+	t.Setenv("BIGQUERY_DATASET", "")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if !cfg.InMemory() {
+		t.Errorf("InMemory() = false, want true")
+	}
+}
+
+func TestLoadRequiresDatasetWithProject(t *testing.T) {
+	t.Setenv("PORT", "")
+	t.Setenv("GOOGLE_CLOUD_PROJECT", "abdoc-local")
+	t.Setenv("BIGQUERY_DATASET", "")
+
+	if _, err := Load(); err == nil {
+		t.Error("Load() error = nil, want error")
+	}
+}
+
 func TestLoadInvalidPort(t *testing.T) {
 	for _, port := range []string{"abc", "0", "65536", "-1"} {
 		t.Run(port, func(t *testing.T) {

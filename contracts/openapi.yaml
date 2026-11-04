@@ -15,7 +15,89 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Health"
+  /api/posts/{slug}/reaction:
+    parameters:
+      - $ref: "#/components/parameters/Slug"
+      - $ref: "#/components/parameters/VisitorId"
+    get:
+      operationId: getReaction
+      summary: 版ごとのいいね数・バッド数と、訪問者自身のリアクションを返す
+      parameters:
+        - name: variant
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/Variant"
+      responses:
+        "200":
+          description: リアクションの状態（記録が無い slug / 版でも 0 件と none を返す）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReactionState"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+    put:
+      operationId: putReaction
+      summary: 訪問者のリアクションを設定する（冪等）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PutReactionRequest"
+      responses:
+        "200":
+          description: 更新後のリアクションの状態
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReactionState"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+  /api/posts/{slug}/engagement:
+    parameters:
+      - $ref: "#/components/parameters/Slug"
+      - $ref: "#/components/parameters/VisitorId"
+    post:
+      operationId: postEngagement
+      summary: スクロール深さと滞在時間を記録する
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EngagementRequest"
+      responses:
+        "204":
+          description: 記録した
+        "400":
+          $ref: "#/components/responses/BadRequest"
 components:
+  parameters:
+    Slug:
+      name: slug
+      in: path
+      required: true
+      description: 記事の slug。形式だけを検証し、不明な slug でも 404 にしない
+      schema:
+        type: string
+        pattern: "^[a-z0-9-]{1,100}$"
+    VisitorId:
+      name: X-Abdoc-Visitor-Id
+      in: header
+      required: true
+      description: FE が発行する Cookie `abdoc_vid` の UUID
+      schema:
+        type: string
+        format: uuid
+  responses:
+    BadRequest:
+      description: 入力が不正（何も記録しない）
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
   schemas:
     Health:
       type: object
@@ -24,3 +106,53 @@ components:
         status:
           type: string
           enum: [ok]
+    Variant:
+      type: string
+      enum: [A, B]
+    Reaction:
+      type: string
+      enum: [like, bad, none]
+    ReactionState:
+      type: object
+      required: [likes, bads, myReaction]
+      properties:
+        likes:
+          type: integer
+          format: int64
+          minimum: 0
+        bads:
+          type: integer
+          format: int64
+          minimum: 0
+        myReaction:
+          $ref: "#/components/schemas/Reaction"
+    PutReactionRequest:
+      type: object
+      required: [variant, reaction]
+      properties:
+        variant:
+          $ref: "#/components/schemas/Variant"
+        reaction:
+          $ref: "#/components/schemas/Reaction"
+    EngagementRequest:
+      type: object
+      required: [variant, maxScrollDepth, durationSeconds]
+      properties:
+        variant:
+          $ref: "#/components/schemas/Variant"
+        maxScrollDepth:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: 最大スクロール深さ（整数 %）
+        durationSeconds:
+          type: number
+          format: double
+          minimum: 0
+          description: 滞在時間（秒）
+    Error:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string

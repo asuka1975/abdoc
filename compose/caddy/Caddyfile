@@ -1,0 +1,25 @@
+# Firebase Hosting の代わりのリバースプロキシ（ローカル専用）。
+# - frontend/dist（`pnpm build` の出力）を静的配信する
+# - /api/** を backend へ転送する
+# - Firebase Hosting と同じく、Cloud Run へ渡す Cookie は __session だけにする
+{
+	admin off
+}
+
+:8080 {
+	route /api/* {
+		# __session が無ければ Cookie ヘッダーごと捨て、あれば __session だけを残す
+		@noSession not header_regexp Cookie (?:^|;\s*)__session=
+		request_header @noSession -Cookie
+		@session header_regexp session Cookie (?:^|;\s*)__session=([^;]*)
+		request_header @session Cookie "__session={re.session.1}"
+
+		reverse_proxy backend:8080
+	}
+
+	route {
+		root * /srv
+		try_files {path} {path}/ {path}.html
+		file_server
+	}
+}

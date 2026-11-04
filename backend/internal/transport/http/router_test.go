@@ -11,7 +11,7 @@ import (
 )
 
 func TestHealthz(t *testing.T) {
-	h := NewRouter()
+	h := newTestRouter(t)
 
 	req := httptest.NewRequest(nethttp.MethodGet, "/healthz", nil)
 	rec := httptest.NewRecorder()
@@ -29,7 +29,7 @@ func TestHealthz(t *testing.T) {
 }
 
 func TestHealthzOverServer(t *testing.T) {
-	srv := httptest.NewServer(NewRouter())
+	srv := httptest.NewServer(newTestRouter(t))
 	defer srv.Close()
 
 	res, err := nethttp.Get(srv.URL + "/healthz")
@@ -73,7 +73,7 @@ func TestHealthzImplementsGeneratedInterface(t *testing.T) {
 }
 
 func TestUnknownRouteIs404(t *testing.T) {
-	h := NewRouter()
+	h := newTestRouter(t)
 
 	req := httptest.NewRequest(nethttp.MethodGet, "/nope", nil)
 	rec := httptest.NewRecorder()

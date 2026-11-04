@@ -4,10 +4,13 @@
 package api
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/oapi-codegen/runtime"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
 // Defines values for HealthStatus.
@@ -25,6 +28,60 @@ func (e HealthStatus) Valid() bool {
 	}
 }
 
+// Defines values for Reaction.
+const (
+	Bad  Reaction = "bad"
+	Like Reaction = "like"
+	None Reaction = "none"
+)
+
+// Valid indicates whether the value is a known member of the Reaction enum.
+func (e Reaction) Valid() bool {
+	switch e {
+	case Bad:
+		return true
+	case Like:
+		return true
+	case None:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for Variant.
+const (
+	A Variant = "A"
+	B Variant = "B"
+)
+
+// Valid indicates whether the value is a known member of the Variant enum.
+func (e Variant) Valid() bool {
+	switch e {
+	case A:
+		return true
+	case B:
+		return true
+	default:
+		return false
+	}
+}
+
+// EngagementRequest defines model for EngagementRequest.
+type EngagementRequest struct {
+	// DurationSeconds 滞在時間（秒）
+	DurationSeconds float64 `json:"durationSeconds"`
+
+	// MaxScrollDepth 最大スクロール深さ（整数 %）
+	MaxScrollDepth int     `json:"maxScrollDepth"`
+	Variant        Variant `json:"variant"`
+}
+
+// Error defines model for Error.
+type Error struct {
+	Message string `json:"message"`
+}
+
 // Health defines model for Health.
 type Health struct {
 	Status HealthStatus `json:"status"`
@@ -33,8 +90,71 @@ type Health struct {
 // HealthStatus defines model for Health.Status.
 type HealthStatus string
 
+// PutReactionRequest defines model for PutReactionRequest.
+type PutReactionRequest struct {
+	Reaction Reaction `json:"reaction"`
+	Variant  Variant  `json:"variant"`
+}
+
+// Reaction defines model for Reaction.
+type Reaction string
+
+// ReactionState defines model for ReactionState.
+type ReactionState struct {
+	Bads       int64    `json:"bads"`
+	Likes      int64    `json:"likes"`
+	MyReaction Reaction `json:"myReaction"`
+}
+
+// Variant defines model for Variant.
+type Variant string
+
+// Slug defines model for Slug.
+type Slug = string
+
+// VisitorId defines model for VisitorId.
+type VisitorId = openapi_types.UUID
+
+// BadRequest defines model for BadRequest.
+type BadRequest = Error
+
+// PostEngagementParams defines parameters for PostEngagement.
+type PostEngagementParams struct {
+	// XAbdocVisitorId FE が発行する Cookie `abdoc_vid` の UUID
+	XAbdocVisitorId VisitorId `json:"X-Abdoc-Visitor-Id"`
+}
+
+// GetReactionParams defines parameters for GetReaction.
+type GetReactionParams struct {
+	Variant Variant `form:"variant" json:"variant"`
+
+	// XAbdocVisitorId FE が発行する Cookie `abdoc_vid` の UUID
+	XAbdocVisitorId VisitorId `json:"X-Abdoc-Visitor-Id"`
+}
+
+// PutReactionParams defines parameters for PutReaction.
+type PutReactionParams struct {
+	// XAbdocVisitorId FE が発行する Cookie `abdoc_vid` の UUID
+	XAbdocVisitorId VisitorId `json:"X-Abdoc-Visitor-Id"`
+}
+
+// PostEngagementJSONRequestBody defines body for PostEngagement for application/json ContentType.
+type PostEngagementJSONRequestBody = EngagementRequest
+
+// PutReactionJSONRequestBody defines body for PutReaction for application/json ContentType.
+type PutReactionJSONRequestBody = PutReactionRequest
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// PostEngagement スクロール深さと滞在時間を記録する
+	// (POST /api/posts/{slug}/engagement)
+	PostEngagement(w http.ResponseWriter, r *http.Request, slug Slug, params PostEngagementParams)
+	// GetReaction 版ごとのいいね数・バッド数と、訪問者自身のリアクションを返す
+	// (GET /api/posts/{slug}/reaction)
+	GetReaction(w http.ResponseWriter, r *http.Request, slug Slug, params GetReactionParams)
+	// PutReaction 訪問者のリアクションを設定する（冪等）
+	// (PUT /api/posts/{slug}/reaction)
+	PutReaction(w http.ResponseWriter, r *http.Request, slug Slug, params PutReactionParams)
 	// GetHealthz ヘルスチェック
 	// (GET /healthz)
 	GetHealthz(w http.ResponseWriter, r *http.Request)
@@ -43,6 +163,24 @@ type ServerInterface interface {
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
 
 type Unimplemented struct{}
+
+// PostEngagement スクロール深さと滞在時間を記録する
+// (POST /api/posts/{slug}/engagement)
+func (_ Unimplemented) PostEngagement(w http.ResponseWriter, r *http.Request, slug Slug, params PostEngagementParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetReaction 版ごとのいいね数・バッド数と、訪問者自身のリアクションを返す
+// (GET /api/posts/{slug}/reaction)
+func (_ Unimplemented) GetReaction(w http.ResponseWriter, r *http.Request, slug Slug, params GetReactionParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// PutReaction 訪問者のリアクションを設定する（冪等）
+// (PUT /api/posts/{slug}/reaction)
+func (_ Unimplemented) PutReaction(w http.ResponseWriter, r *http.Request, slug Slug, params PutReactionParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
 
 // GetHealthz ヘルスチェック
 // (GET /healthz)
@@ -58,6 +196,181 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// PostEngagement operation middleware
+func (siw *ServerInterfaceWrapper) PostEngagement(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "slug" -------------
+	var slug Slug
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slug", chi.URLParam(r, "slug"), &slug, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "slug", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostEngagementParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Abdoc-Visitor-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Abdoc-Visitor-Id")]; found {
+		var XAbdocVisitorId VisitorId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Abdoc-Visitor-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Abdoc-Visitor-Id", valueList[0], &XAbdocVisitorId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Abdoc-Visitor-Id", Err: err})
+			return
+		}
+
+		params.XAbdocVisitorId = XAbdocVisitorId
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Abdoc-Visitor-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Abdoc-Visitor-Id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostEngagement(w, r, slug, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetReaction operation middleware
+func (siw *ServerInterfaceWrapper) GetReaction(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "slug" -------------
+	var slug Slug
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slug", chi.URLParam(r, "slug"), &slug, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "slug", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetReactionParams
+
+	// ------------- Required query parameter "variant" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "variant", r.URL.Query(), &params.Variant, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "variant"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "variant", Err: err})
+		}
+		return
+	}
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Abdoc-Visitor-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Abdoc-Visitor-Id")]; found {
+		var XAbdocVisitorId VisitorId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Abdoc-Visitor-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Abdoc-Visitor-Id", valueList[0], &XAbdocVisitorId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Abdoc-Visitor-Id", Err: err})
+			return
+		}
+
+		params.XAbdocVisitorId = XAbdocVisitorId
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Abdoc-Visitor-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Abdoc-Visitor-Id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetReaction(w, r, slug, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutReaction operation middleware
+func (siw *ServerInterfaceWrapper) PutReaction(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "slug" -------------
+	var slug Slug
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slug", chi.URLParam(r, "slug"), &slug, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "slug", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PutReactionParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Abdoc-Visitor-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Abdoc-Visitor-Id")]; found {
+		var XAbdocVisitorId VisitorId
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Abdoc-Visitor-Id", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Abdoc-Visitor-Id", valueList[0], &XAbdocVisitorId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Abdoc-Visitor-Id", Err: err})
+			return
+		}
+
+		params.XAbdocVisitorId = XAbdocVisitorId
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Abdoc-Visitor-Id is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Abdoc-Visitor-Id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutReaction(w, r, slug, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // GetHealthz operation middleware
 func (siw *ServerInterfaceWrapper) GetHealthz(w http.ResponseWriter, r *http.Request) {
@@ -188,6 +501,15 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/healthz", wrapper.GetHealthz)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/api/posts/{slug}/reaction", wrapper.GetReaction)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/api/posts/{slug}/reaction", wrapper.PutReaction)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/api/posts/{slug}/engagement", wrapper.PostEngagement)
 	})
 
 	return r

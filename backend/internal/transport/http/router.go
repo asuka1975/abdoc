@@ -3,6 +3,7 @@ package http
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -12,16 +13,25 @@ import (
 )
 
 // server は contracts/openapi.yaml から生成した api.ServerInterface を実装する。
-type server struct{}
+type server struct {
+	reactions Reactions
+	logger    *slog.Logger
+}
 
 var _ api.ServerInterface = server{}
 
 // NewRouter はアプリ全体の HTTP ハンドラを組み立てる。
-func NewRouter() http.Handler {
+func NewRouter(reactions Reactions, logger *slog.Logger) http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.Recoverer)
 
-	api.HandlerFromMux(server{}, r)
+	api.HandlerWithOptions(server{reactions: reactions, logger: logger}, api.ChiServerOptions{
+		BaseRouter: r,
+		// パス・クエリ・ヘッダーの形式違反（visitor ID が UUID でない等）は契約の Error 形式の 400 にする。
+		ErrorHandlerFunc: func(w http.ResponseWriter, _ *http.Request, err error) {
+			writeError(w, http.StatusBadRequest, err.Error())
+		},
+	})
 
 	return r
 }
@@ -40,4 +50,8 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_, _ = w.Write(body)
+}
+
+func writeError(w http.ResponseWriter, status int, message string) {
+	writeJSON(w, status, api.Error{Message: message})
 }

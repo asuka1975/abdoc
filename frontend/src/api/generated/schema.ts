@@ -21,6 +21,53 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/posts/{slug}/reaction": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description FE が発行する Cookie `abdoc_vid` の UUID */
+                "X-Abdoc-Visitor-Id": components["parameters"]["VisitorId"];
+            };
+            path: {
+                /** @description 記事の slug。形式だけを検証し、不明な slug でも 404 にしない */
+                slug: components["parameters"]["Slug"];
+            };
+            cookie?: never;
+        };
+        /** 版ごとのいいね数・バッド数と、訪問者自身のリアクションを返す */
+        get: operations["getReaction"];
+        /** 訪問者のリアクションを設定する（冪等） */
+        put: operations["putReaction"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/posts/{slug}/engagement": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description FE が発行する Cookie `abdoc_vid` の UUID */
+                "X-Abdoc-Visitor-Id": components["parameters"]["VisitorId"];
+            };
+            path: {
+                /** @description 記事の slug。形式だけを検証し、不明な slug でも 404 にしない */
+                slug: components["parameters"]["Slug"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** スクロール深さと滞在時間を記録する */
+        post: operations["postEngagement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -29,9 +76,52 @@ export interface components {
             /** @enum {string} */
             status: "ok";
         };
+        /** @enum {string} */
+        Variant: "A" | "B";
+        /** @enum {string} */
+        Reaction: "like" | "bad" | "none";
+        ReactionState: {
+            /** Format: int64 */
+            likes: number;
+            /** Format: int64 */
+            bads: number;
+            myReaction: components["schemas"]["Reaction"];
+        };
+        PutReactionRequest: {
+            variant: components["schemas"]["Variant"];
+            reaction: components["schemas"]["Reaction"];
+        };
+        EngagementRequest: {
+            variant: components["schemas"]["Variant"];
+            /** @description 最大スクロール深さ（整数 %） */
+            maxScrollDepth: number;
+            /**
+             * Format: double
+             * @description 滞在時間（秒）
+             */
+            durationSeconds: number;
+        };
+        Error: {
+            message: string;
+        };
     };
-    responses: never;
-    parameters: never;
+    responses: {
+        /** @description 入力が不正（何も記録しない） */
+        BadRequest: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+    };
+    parameters: {
+        /** @description 記事の slug。形式だけを検証し、不明な slug でも 404 にしない */
+        Slug: string;
+        /** @description FE が発行する Cookie `abdoc_vid` の UUID */
+        VisitorId: string;
+    };
     requestBodies: never;
     headers: never;
     pathItems: never;
@@ -56,6 +146,95 @@ export interface operations {
                     "application/json": components["schemas"]["Health"];
                 };
             };
+        };
+    };
+    getReaction: {
+        parameters: {
+            query: {
+                variant: components["schemas"]["Variant"];
+            };
+            header: {
+                /** @description FE が発行する Cookie `abdoc_vid` の UUID */
+                "X-Abdoc-Visitor-Id": components["parameters"]["VisitorId"];
+            };
+            path: {
+                /** @description 記事の slug。形式だけを検証し、不明な slug でも 404 にしない */
+                slug: components["parameters"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description リアクションの状態（記録が無い slug / 版でも 0 件と none を返す） */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReactionState"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+        };
+    };
+    putReaction: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description FE が発行する Cookie `abdoc_vid` の UUID */
+                "X-Abdoc-Visitor-Id": components["parameters"]["VisitorId"];
+            };
+            path: {
+                /** @description 記事の slug。形式だけを検証し、不明な slug でも 404 にしない */
+                slug: components["parameters"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PutReactionRequest"];
+            };
+        };
+        responses: {
+            /** @description 更新後のリアクションの状態 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReactionState"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+        };
+    };
+    postEngagement: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description FE が発行する Cookie `abdoc_vid` の UUID */
+                "X-Abdoc-Visitor-Id": components["parameters"]["VisitorId"];
+            };
+            path: {
+                /** @description 記事の slug。形式だけを検証し、不明な slug でも 404 にしない */
+                slug: components["parameters"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EngagementRequest"];
+            };
+        };
+        responses: {
+            /** @description 記録した */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
         };
     };
 }
